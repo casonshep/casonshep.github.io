@@ -1,147 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Conway UI Transition</title>
+  <meta charset="UTF-8" />
+  <title>Conway's Life UI</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      overflow: hidden;
       background: black;
-      font-family: Arial, sans-serif;
+      overflow: hidden;
     }
-
     canvas {
       display: block;
-      width: 100vw;
-      height: 100vh;
-    }
-
-    #uiContainer {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      z-index: 2;
-      color: white;
-      opacity: 0;
-      transition: opacity 2s ease;
-    }
-
-    #uiContainer h1 {
-      font-size: 3rem;
-      margin-bottom: 20px;
-    }
-
-    #uiContainer button {
-      padding: 10px 20px;
-      font-size: 1.2rem;
-      background-color: white;
-      color: black;
-      border: none;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-
-    #uiContainer button:hover {
-      background-color: #ccc;
     }
   </style>
 </head>
 <body>
+  <canvas id="lifeCanvas"></canvas>
 
-<canvas id="lifeCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById('lifeCanvas');
+    const ctx = canvas.getContext('2d');
 
-<div id="uiContainer">
-  <h1>Welcome to My Site</h1>
-  <button onclick="alert('Button clicked!')">Start</button>
-</div>
+    const cellSize = 10;
+    const cols = 100;
+    const rows = 50;
 
-<script>
-  const canvas = document.getElementById('lifeCanvas');
-  const ctx = canvas.getContext('2d');
+    canvas.width = cols * cellSize;
+    canvas.height = rows * cellSize;
 
-  // Fullscreen setup
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+    // Create final UI grid with "WELCOME" pixel art (very simple example)
+    const finalGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
 
-  const cellSize = 10;
-  const cols = Math.floor(canvas.width / cellSize);
-  const rows = Math.floor(canvas.height / cellSize);
+    const textMap = [
+      " 1  1 111 1   1 111 ",
+      " 1  1 1   1   1 1  1",
+      " 1111 111 1   1 111 ",
+      " 1  1 1   1   1 1 1 ",
+      " 1  1 111 111 1 1  1"
+    ];
 
-  let grid = Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => Math.random() > 0.8 ? 1 : 0)
-  );
+    const startX = 10;
+    const startY = 10;
 
-  function drawGrid() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        if (grid[y][x]) {
-          ctx.fillStyle = 'white';
-          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+    for (let y = 0; y < textMap.length; y++) {
+      for (let x = 0; x < textMap[y].length; x++) {
+        if (textMap[y][x] === '1') {
+          finalGrid[startY + y][startX + x] = 1;
         }
       }
     }
-  }
 
-  function nextGen() {
-    const newGrid = grid.map(arr => [...arr]);
-
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        let liveNeighbors = 0;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue;
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < cols && ny < rows) {
-              liveNeighbors += grid[ny][nx];
+    // Game of Life step
+    function step(grid) {
+      const newGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          let live = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dy === 0 && dx === 0) continue;
+              const ny = y + dy;
+              const nx = x + dx;
+              if (ny >= 0 && ny < rows && nx >= 0 && nx < cols) {
+                live += grid[ny][nx];
+              }
             }
           }
+          if (grid[y][x] === 1) {
+            newGrid[y][x] = (live === 2 || live === 3) ? 1 : 0;
+          } else {
+            newGrid[y][x] = (live === 3) ? 1 : 0;
+          }
         }
+      }
+      return newGrid;
+    }
 
-        if (grid[y][x] === 1 && (liveNeighbors < 2 || liveNeighbors > 3))
-          newGrid[y][x] = 0;
-        else if (grid[y][x] === 0 && liveNeighbors === 3)
-          newGrid[y][x] = 1;
+    function deepCopy(grid) {
+      return grid.map(row => [...row]);
+    }
+
+    // Generate forward frames
+    let grid = deepCopy(finalGrid);
+    const frames = [deepCopy(grid)];
+    const totalFrames = 40;
+
+    for (let i = 0; i < totalFrames; i++) {
+      grid = step(grid);
+      frames.push(deepCopy(grid));
+    }
+
+    frames.reverse(); // Now it will animate from chaos to UI
+
+    function draw(grid) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (grid[y][x]) {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+          }
+        }
       }
     }
 
-    grid = newGrid;
-  }
-
-  let iterations = 0;
-  const maxIterations = 60;
-
-  function animate() {
-    if (iterations < maxIterations) {
-      drawGrid();
-      nextGen();
-      iterations++;
-      requestAnimationFrame(animate);
-    } else {
-      // Transition to UI
-      const ui = document.getElementById('uiContainer');
-      ui.style.display = 'flex';
-      setTimeout(() => ui.style.opacity = 1, 100);
-
-      // Fade out canvas
-      canvas.style.transition = 'opacity 2s ease';
-      canvas.style.opacity = 0;
-      setTimeout(() => canvas.remove(), 2000);
+    let frameIndex = 0;
+    function animate() {
+      if (frameIndex < frames.length) {
+        draw(frames[frameIndex]);
+        frameIndex++;
+        requestAnimationFrame(animate);
+      }
     }
-  }
 
-  animate();
-</script>
-
+    animate();
+  </script>
 </body>
 </html>
+
