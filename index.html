@@ -18,13 +18,21 @@
 <body>
   <canvas id="lifeCanvas"></canvas>
 
-  <script>
+  <script type="module">
+    import { textToTextMap } from './font.js';
+    
     const canvas = document.getElementById('lifeCanvas');
     const ctx = canvas.getContext('2d');
 
     const cellSize = 10;
-    const cols = 100;
-    const rows = 50;
+    
+
+
+    const widthPx = window.innerWidth;
+    const heightPx = window.innerHeight;
+
+    const cols = Math.floor(widthPx / cellSize);
+    const rows = Math.floor(heightPx / cellSize);
 
     canvas.width = cols * cellSize;
     canvas.height = rows * cellSize;
@@ -32,16 +40,10 @@
     // Create final UI grid with "WELCOME" pixel art (very simple example)
     const finalGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
 
-    const textMap = [
-      " 1  1 111 1   1 111 ",
-      " 1  1 1   1   1 1  1",
-      " 1111 111 1   1 111 ",
-      " 1  1 1   1   1 1 1 ",
-      " 1  1 111 111 1 1  1"
-    ];
+    const textMap = textToTextMap("WOMP", 1);
 
-    const startX = 10;
-    const startY = 10;
+    const startX = 30;
+    const startY = 30;
 
     for (let y = 0; y < textMap.length; y++) {
       for (let x = 0; x < textMap[y].length; x++) {
@@ -50,6 +52,7 @@
         }
       }
     }
+    console.log(finalGrid)
 
     // Game of Life step
     function step(grid) {
@@ -84,7 +87,7 @@
     // Generate forward frames
     let grid = deepCopy(finalGrid);
     const frames = [deepCopy(grid)];
-    const totalFrames = 40;
+    const totalFrames = 150;
 
     for (let i = 0; i < totalFrames; i++) {
       grid = step(grid);
