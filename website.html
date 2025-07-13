@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Conway UI Transition</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #uiContainer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 2;
+      color: white;
+      opacity: 0;
+      transition: opacity 2s ease;
+    }
+
+    #uiContainer h1 {
+      font-size: 3rem;
+      margin-bottom: 20px;
+    }
+
+    #uiContainer button {
+      padding: 10px 20px;
+      font-size: 1.2rem;
+      background-color: white;
+      color: black;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    #uiContainer button:hover {
+      background-color: #ccc;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="lifeCanvas"></canvas>
+
+<div id="uiContainer">
+  <h1>Welcome to My Site</h1>
+  <button onclick="alert('Button clicked!')">Start</button>
+</div>
+
+<script>
+  const canvas = document.getElementById('lifeCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // Fullscreen setup
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const cellSize = 10;
+  const cols = Math.floor(canvas.width / cellSize);
+  const rows = Math.floor(canvas.height / cellSize);
+
+  let grid = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => Math.random() > 0.8 ? 1 : 0)
+  );
+
+  function drawGrid() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        if (grid[y][x]) {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+  }
+
+  function nextGen() {
+    const newGrid = grid.map(arr => [...arr]);
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        let liveNeighbors = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < cols && ny < rows) {
+              liveNeighbors += grid[ny][nx];
+            }
+          }
+        }
+
+        if (grid[y][x] === 1 && (liveNeighbors < 2 || liveNeighbors > 3))
+          newGrid[y][x] = 0;
+        else if (grid[y][x] === 0 && liveNeighbors === 3)
+          newGrid[y][x] = 1;
+      }
+    }
+
+    grid = newGrid;
+  }
+
+  let iterations = 0;
+  const maxIterations = 60;
+
+  function animate() {
+    if (iterations < maxIterations) {
+      drawGrid();
+      nextGen();
+      iterations++;
+      requestAnimationFrame(animate);
+    } else {
+      // Transition to UI
+      const ui = document.getElementById('uiContainer');
+      ui.style.display = 'flex';
+      setTimeout(() => ui.style.opacity = 1, 100);
+
+      // Fade out canvas
+      canvas.style.transition = 'opacity 2s ease';
+      canvas.style.opacity = 0;
+      setTimeout(() => canvas.remove(), 2000);
+    }
+  }
+
+  animate();
+</script>
+
+</body>
+</html>
