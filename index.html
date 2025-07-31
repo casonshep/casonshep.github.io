@@ -1,124 +1,221 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Conway's Life UI</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: black;
-      overflow: hidden;
-    }
-    canvas {
-      display: block;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Portfolio</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="lifeCanvas"></canvas>
+    <header class="header">
+        <nav class="nav">
+            <div class="nav-container">
+                <div class="nav-brand">Portfolio</div>
+                <ul class="nav-menu" id="nav-menu">
+                    <li class="nav-item">
+                        <a href="#home" class="nav-link active" data-section="home">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#about" class="nav-link" data-section="about">About Me</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#blog" class="nav-link" data-section="blog">Blog</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#projects" class="nav-link" data-section="projects">Projects</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#random" class="nav-link" data-section="random">Random Stuff</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#contact" class="nav-link" data-section="contact">Contact Me</a>
+                    </li>
+                </ul>
+                <div class="nav-toggle" id="nav-toggle">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
+            </div>
+        </nav>
+    </header>
 
-  <script type="module">
-    import { textToTextMap } from './font.js';
-    
-    const canvas = document.getElementById('lifeCanvas');
-    const ctx = canvas.getContext('2d');
+    <main class="main">
+        <!-- Home Section -->
+        <section id="home" class="section active">
+            <div class="container">
+                <div class="hero">
+                    <h1 class="hero-title">Professional Portfolio</h1>
+                    <p class="hero-subtitle">Software Developer & Creative Technologist</p>
+                    
+                    <div class="game-of-life-container">
+                        <div class="game-window">
+                            <div class="window-header">
+                                <span class="window-title">Conway's Game of Life</span>
+                                <div class="window-controls">
+                                    <span class="control"></span>
+                                    <span class="control"></span>
+                                    <span class="control"></span>
+                                </div>
+                            </div>
+                            <canvas id="gameCanvas" width="800" height="400"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-    const cellSize = 10;
-    
+        <!-- About Section -->
+        <section id="about" class="section">
+            <div class="container">
+                <h2 class="section-title">About Me</h2>
+                <div class="content-grid">
+                    <div class="text-content">
+                        <p>I am a passionate software developer with a deep interest in computational systems, algorithms, and creative technology. My work spans from complex backend systems to interactive digital experiences.</p>
+                        <p>With expertise in modern programming languages and frameworks, I enjoy tackling challenging problems and creating elegant solutions. My fascination with cellular automata and mathematical systems often influences my approach to software design.</p>
+                        <div class="skills">
+                            <h3>Technical Skills</h3>
+                            <ul>
+                                <li>JavaScript / TypeScript</li>
+                                <li>Python / Java</li>
+                                <li>React / Node.js</li>
+                                <li>Algorithm Design</li>
+                                <li>System Architecture</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
+        <!-- Blog Section -->
+        <section id="blog" class="section">
+            <div class="container">
+                <h2 class="section-title">Blog</h2>
+                <div class="blog-grid">
+                    <article class="blog-post">
+                        <h3>Understanding Cellular Automata</h3>
+                        <p class="post-meta">March 15, 2024</p>
+                        <p>Exploring the fascinating world of cellular automata and their applications in computational biology and artificial life...</p>
+                        <a href="#" class="read-more">Read More</a>
+                    </article>
+                    <article class="blog-post">
+                        <h3>Algorithm Optimization Techniques</h3>
+                        <p class="post-meta">February 28, 2024</p>
+                        <p>A deep dive into various optimization strategies for improving algorithm performance and scalability...</p>
+                        <a href="#" class="read-more">Read More</a>
+                    </article>
+                    <article class="blog-post">
+                        <h3>The Beauty of Mathematical Patterns</h3>
+                        <p class="post-meta">January 10, 2024</p>
+                        <p>Discovering how mathematical concepts translate into beautiful visual patterns and interactive experiences...</p>
+                        <a href="#" class="read-more">Read More</a>
+                    </article>
+                </div>
+            </div>
+        </section>
 
-    const widthPx = window.innerWidth;
-    const heightPx = window.innerHeight;
+        <!-- Projects Section -->
+        <section id="projects" class="section">
+            <div class="container">
+                <h2 class="section-title">Projects</h2>
+                <div class="projects-grid">
+                    <div class="project-card">
+                        <h3>Distributed System Architecture</h3>
+                        <p>A scalable microservices architecture handling millions of transactions with fault tolerance and load balancing.</p>
+                        <div class="project-tech">
+                            <span class="tech-tag">Java</span>
+                            <span class="tech-tag">Spring Boot</span>
+                            <span class="tech-tag">Docker</span>
+                        </div>
+                    </div>
+                    <div class="project-card">
+                        <h3>Interactive Data Visualization</h3>
+                        <p>Real-time data visualization platform for complex datasets with custom algorithms and interactive controls.</p>
+                        <div class="project-tech">
+                            <span class="tech-tag">JavaScript</span>
+                            <span class="tech-tag">D3.js</span>
+                            <span class="tech-tag">WebGL</span>
+                        </div>
+                    </div>
+                    <div class="project-card">
+                        <h3>Machine Learning Pipeline</h3>
+                        <p>End-to-end ML pipeline for predictive analytics with automated model training and deployment.</p>
+                        <div class="project-tech">
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">TensorFlow</span>
+                            <span class="tech-tag">AWS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-    const cols = Math.floor(widthPx / cellSize);
-    const rows = Math.floor(heightPx / cellSize);
+        <!-- Random Stuff Section -->
+        <section id="random" class="section">
+            <div class="container">
+                <h2 class="section-title">Random Stuff</h2>
+                <div class="random-grid">
+                    <div class="random-item">
+                        <h3>Generative Art</h3>
+                        <p>Exploring procedural generation and algorithmic art creation using various mathematical principles.</p>
+                    </div>
+                    <div class="random-item">
+                        <h3>Retro Computing</h3>
+                        <p>Collection of vintage computing systems and exploration of historical programming paradigms.</p>
+                    </div>
+                    <div class="random-item">
+                        <h3>Mathematical Recreations</h3>
+                        <p>Interactive demonstrations of mathematical concepts, from fractals to number theory.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-    canvas.width = cols * cellSize;
-    canvas.height = rows * cellSize;
+        <!-- Contact Section -->
+        <section id="contact" class="section">
+            <div class="container">
+                <h2 class="section-title">Contact Me</h2>
+                <div class="contact-content">
+                    <div class="contact-info">
+                        <h3>Get In Touch</h3>
+                        <p>I'm always interested in discussing new opportunities, innovative projects, and technical challenges.</p>
+                        <div class="contact-methods">
+                            <div class="contact-method">
+                                <strong>Email:</strong> professional@example.com
+                            </div>
+                            <div class="contact-method">
+                                <strong>LinkedIn:</strong> /in/yourprofile
+                            </div>
+                            <div class="contact-method">
+                                <strong>GitHub:</strong> /yourusername
+                            </div>
+                        </div>
+                    </div>
+                    <form class="contact-form">
+                        <div class="form-group">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" id="name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" id="email" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="subject" class="form-label">Subject</label>
+                            <input type="text" id="subject" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea id="message" class="form-control" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn--primary">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
 
-    // Create final UI grid with "WELCOME" pixel art (very simple example)
-    const finalGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
-
-    const textMap = textToTextMap("WOMP", 1);
-
-    const startX = 30;
-    const startY = 30;
-
-    for (let y = 0; y < textMap.length; y++) {
-      for (let x = 0; x < textMap[y].length; x++) {
-        if (textMap[y][x] === '1') {
-          finalGrid[startY + y][startX + x] = 1;
-        }
-      }
-    }
-    console.log(finalGrid)
-
-    // Game of Life step
-    function step(grid) {
-      const newGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          let live = 0;
-          for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-              if (dy === 0 && dx === 0) continue;
-              const ny = y + dy;
-              const nx = x + dx;
-              if (ny >= 0 && ny < rows && nx >= 0 && nx < cols) {
-                live += grid[ny][nx];
-              }
-            }
-          }
-          if (grid[y][x] === 1) {
-            newGrid[y][x] = (live === 2 || live === 3) ? 1 : 0;
-          } else {
-            newGrid[y][x] = (live === 3) ? 1 : 0;
-          }
-        }
-      }
-      return newGrid;
-    }
-
-    function deepCopy(grid) {
-      return grid.map(row => [...row]);
-    }
-
-    // Generate forward frames
-    let grid = deepCopy(finalGrid);
-    const frames = [deepCopy(grid)];
-    const totalFrames = 150;
-
-    for (let i = 0; i < totalFrames; i++) {
-      grid = step(grid);
-      frames.push(deepCopy(grid));
-    }
-
-    frames.reverse(); // Now it will animate from chaos to UI
-
-    function draw(grid) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          if (grid[y][x]) {
-            ctx.fillStyle = 'white';
-            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-          }
-        }
-      }
-    }
-
-    let frameIndex = 0;
-    function animate() {
-      if (frameIndex < frames.length) {
-        draw(frames[frameIndex]);
-        frameIndex++;
-        requestAnimationFrame(animate);
-      }
-    }
-
-    animate();
-  </script>
+    <script src="app.js"></script>
 </body>
 </html>
-
