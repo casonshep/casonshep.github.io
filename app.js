@@ -30,146 +30,68 @@ class GameOfLife {
         return grid.map(row => [...row]);
     }
     
-    // Simple bitmap font patterns for letters (7x9 grid each)
-    getLetterPattern(letter) {
-        const patterns = {
-            'W': [
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,1,0,0,1],
-                [1,0,1,0,1,0,1],
-                [1,1,0,0,0,1,1],
-                [1,0,0,0,0,0,1],
-                [0,0,0,0,0,0,0]
-            ],
-            'E': [
-                [1,1,1,1,1,1,1],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,1,1,1,1,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,1,1,1,1,1,1],
-                [0,0,0,0,0,0,0]
-            ],
-            'L': [
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,1,1,1,1,1,1],
-                [0,0,0,0,0,0,0]
-            ],
-            'C': [
-                [0,1,1,1,1,1,0],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,0],
-                [1,0,0,0,0,0,1],
-                [0,1,1,1,1,1,0],
-                [0,0,0,0,0,0,0]
-            ],
-            'O': [
-                [0,1,1,1,1,1,0],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [0,1,1,1,1,1,0],
-                [0,0,0,0,0,0,0]
-            ],
-            'M': [
-                [1,0,0,0,0,0,1],
-                [1,1,0,0,0,1,1],
-                [1,0,1,0,1,0,1],
-                [1,0,0,1,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [0,0,0,0,0,0,0]
-            ],
-            'U': [
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [0,1,1,1,1,1,0],
-                [0,0,0,0,0,0,0]
-            ],
-            'S': [
-                [0,1,1,1,1,1,0],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,0],
-                [0,1,1,1,1,0,0],
-                [0,0,0,0,0,1,0],
-                [0,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [0,1,1,1,1,1,0],
-                [0,0,0,0,0,0,0]
-            ],
-            'R': [
-                [1,1,1,1,1,1,0],
-                [1,0,0,0,0,0,1],
-                [1,0,0,0,0,0,1],
-                [1,1,1,1,1,1,0],
-                [1,0,0,1,0,0,0],
-                [1,0,0,0,1,0,0],
-                [1,0,0,0,0,1,0],
-                [1,0,0,0,0,0,1],
-                [0,0,0,0,0,0,0]
-            ],
-            ' ': [
-                [0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0]
-            ]
-        };
-        return patterns[letter] || patterns[' '];
-    }
-    
     createWelcomePattern() {
         const grid = this.createEmptyGrid();
-        const message = "WELCOME USER";
-        const startX = (this.width - (12 * 8)) / 2;
-        const startY = this.height / 2 - 9;
+        const message = "welcome to my website";
         
-        let currentX = startX;
+        // Split message into words
+        const words = message.split(' ');
+        const maxLineLength = 15; // Maximum characters per line
+        const lineHeight = 10; // Pixels between lines
         
-        for (let i = 0; i < message.length; i++) {
-            const letter = message[i];
-            const pattern = this.getLetterPattern(letter);
+        // Function to split text into lines that fit within maxLineLength
+        const splitIntoLines = (words, maxLength) => {
+            const lines = [];
+            let currentLine = [];
+            let currentLength = 0;
             
-            // Place letter pattern on grid
-            for (let y = 0; y < pattern.length; y++) {
-                for (let x = 0; x < pattern[y].length; x++) {
-                    if (currentX + x < this.width && startY + y < this.height) {
-                        grid[startY + y][currentX + x] = pattern[y][x];
-                    }
+            words.forEach(word => {
+                // If adding another word would exceed max length, start a new line
+                if (currentLength + word.length > maxLength) {
+                    lines.push(currentLine.join(' '));
+                    currentLine = [word];
+                    currentLength = word.length + 1;
+                } else {
+                    currentLine.push(word);
+                    currentLength += word.length + 1; // +1 for space
                 }
+            });
+            
+            // Add the last line if not empty
+            if (currentLine.length > 0) {
+                lines.push(currentLine.join(' '));
             }
             
-            currentX += 8; // Move to next letter position
-        }
+            return lines;
+        };
+        
+        const lines = splitIntoLines(words, maxLineLength);
+        const startY = Math.max(10, Math.floor((this.height - (lines.length * lineHeight)) / 2));
+        
+        lines.forEach((line, lineIndex) => {
+            const lineWidth = line.length * 8; // 8 pixels per character (7 width + 1 space)
+            let currentX = Math.max(0, Math.floor((this.width - lineWidth) / 2));
+            
+            // Place each character in the line
+            for (let i = 0; i < line.length; i++) {
+                const letter = line[i];
+                const pattern = getLetterPattern(letter);
+                
+                // Place letter pattern on grid
+                for (let y = 0; y < pattern.length; y++) {
+                    for (let x = 0; x < pattern[y].length; x++) {
+                        const gridY = startY + (lineIndex * lineHeight) + y;
+                        const gridX = currentX + x;
+                        
+                        if (gridX < this.width && gridY < this.height) {
+                            grid[gridY][gridX] = pattern[y][x];
+                        }
+                    }
+                }
+                
+                currentX += 8; // Move to next character position (7px char + 1px space)
+            }
+        });
         
         this.generateStates(grid);
     }
