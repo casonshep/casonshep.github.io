@@ -1,235 +1,32 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cason's Website</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <header class="header">
-        <nav class="nav">
-            <div class="nav-container">
-                <div class="nav-brand">Cason Shepard</div>
-                <ul class="nav-menu" id="nav-menu">
-                    <li class="nav-item">
-                        <a href="#home" class="nav-link active" data-section="home">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#about" class="nav-link" data-section="about">About Me</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#blog" class="nav-link" data-section="blog">Blog</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#projects" class="nav-link" data-section="projects">Projects</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#random" class="nav-link" data-section="random">Random Stuff</a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#contact" class="nav-link" data-section="contact">Contact Me</a>
-                    </li>
-                </ul>
-                <div class="nav-toggle" id="nav-toggle">
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                </div>
-            </div>
-        </nav>
-    </header>
-
-    <main class="main">
-        <!-- Home Section -->
-        <section id="home" class="section active">
-            <div class="container">
-                <div class="hero">
-                    <h1 class="hero-title">Professional Portfolio</h1>
-                    <p class="hero-subtitle">Software Developer & Creative Technologist</p>
-                    
-                    <div class="profile-section">
-                        <div class="profile-image-container">
-                            <!-- Replace 'your-image.jpg' with your actual image filename -->
-                            <img src="images/cason1.jpg" alt="Cason Shepard" class="profile-image">
-                        </div>
-                        <div class="profile-blurb">
-                            <h2>Hi, I'm Cason</h2>
-                            <p>I am a recent graduate from California Institute of Technology with a Bachelor's of Science in Computer Science and a focus on Machine Learning.
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div class="game-of-life-container">
-                        <div class="game-window">
-                            <div class="window-header">
-                                <span class="window-title">Enjoy this cellular welcome from Conway's Automata.</span>
-                                <div class="window-controls">
-                                    <span class="control"></span>
-                                    <span class="control"></span>
-                                    <span class="control"></span>
-                                </div>
-                            </div>
-                            <canvas id="gameCanvas" width="800" height="400"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- About Section -->
-        <section id="about" class="section">
-            <div class="container">
-                <h2 class="section-title">About Me</h2>
-                <div class="content-grid">
-                    <div class="text-content">
-                        <p>I am a passionate software developer with a deep interest in computational systems, algorithms, and creative technology. My work spans from complex backend systems to interactive digital experiences.</p>
-                        <p>With expertise in modern programming languages and frameworks, I enjoy tackling challenging problems and creating elegant solutions. My fascination with cellular automata and mathematical systems often influences my approach to software design.</p>
-                        <div class="skills">
-                            <h3>Technical Skills</h3>
-                            <ul>
-                                <li>JavaScript / TypeScript</li>
-                                <li>Python / Java</li>
-                                <li>React / Node.js</li>
-                                <li>Algorithm Design</li>
-                                <li>System Architecture</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Blog Section -->
-        <section id="blog" class="section">
-            <div class="container">
-                <h2 class="section-title">Blog</h2>
-                <div class="blog-grid">
-                    <article class="blog-post">
-                        <h3>Blog Post 1</h3>
-                        <p class="post-meta">Month xx, year</p>
-                        <p>coming soon...</p>
-                        <a href="#" class="read-more">Read More</a>
-                    </article>
-                    <article class="blog-post">
-                        <h3>Blog Post 2</h3>
-                        <p class="post-meta">Month xx, year</p>
-                        <p>coming soon...</p>
-                        <a href="#" class="read-more">Read More</a>
-                    </article>
-                    <article class="blog-post">
-                        <h3>Blog Post 3</h3>
-                        <p class="post-meta">Month xx, year</p>
-                        <p>coming soon...</p>
-                        <a href="#" class="read-more">Read More</a>
-                    </article>
-                </div>
-            </div>
-        </section>
-
-        <!-- Projects Section -->
-        <section id="projects" class="section">
-            <div class="container">
-                <h2 class="section-title">Projects</h2>
-                <div class="projects-grid">
-                    <div class="project-card">
-                        <h3>This Website</h3>
-                        <p>My first attempt at a personal website I will add to.</p>
-                        <div class="project-tech">
-                            <span class="tech-tag">HTML</span>
-                            <span class="tech-tag">CSS</span>
-                            <span class="tech-tag">JavaScript</span>
-                            <span class="tech-tag">React</span>
-                        </div>
-                    </div>
-                    <div class="project-card">
-                        <h3>Project 2</h3>
-                        <p>coming soon...</p>
-                        <div class="project-tech">
-                            <span class="tech-tag">skill 1</span>
-                            <span class="tech-tag">skill 2</span>
-                            <span class="tech-tag">skill 3</span>
-                        </div>
-                    </div>
-                    <div class="project-card">
-                        <h3>Project 3</h3>
-                        <p>coming soon...</p>
-                        <div class="project-tech">
-                            <span class="tech-tag">skill 1</span>
-                            <span class="tech-tag">skill 2</span>
-                            <span class="tech-tag">skill 3</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Random Stuff Section -->
-        <section id="random" class="section">
-            <div class="container">
-                <h2 class="section-title">Random Stuff</h2>
-                <div class="random-grid">
-                    <div class="random-item">
-                        <h3>Links and Rescources I enjoy</h3>
-                        <p>Links to some of my favorite resources and links I find interesting.</p>
-                    </div>
-                    <div class="random-item">
-                        <h3>My Favorite Music</h3>
-                        <p>Collection of some of my favorite songs and artists.</p>
-                    </div>
-                    <div class="random-item">
-                        <h3>Favorite Games</h3>
-                        <p>Collection of some of my favorite games.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Contact Section -->
-        <section id="contact" class="section">
-            <div class="container">
-                <h2 class="section-title">Contact Me</h2>
-                <div class="contact-content">
-                    <div class="contact-info">
-                        <h3>Get In Touch</h3>
-                        <p>I'm always interested in discussing new opportunities, innovative projects, and technical challenges.</p>
-                        <div class="contact-methods">
-                            <div class="contact-method">
-                                <strong>Email:</strong> cason dot shepard at alumni dot caltech dot edu
-                            </div>
-                            <div class="contact-method">
-                                <strong>LinkedIn:</strong> /in/casonshep
-                            </div>
-                            <div class="contact-method">
-                                <strong>GitHub:</strong> /casonshep
-                            </div>
-                        </div>
-                    </div>
-                    <form class="contact-form">
-                        <div class="form-group">
-                            <label for="name" class="form-label">Name</label>
-                            <input type="text" id="name" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" id="email" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="subject" class="form-label">Subject</label>
-                            <input type="text" id="subject" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="message" class="form-label">Message</label>
-                            <textarea id="message" class="form-control" rows="5" required></textarea>
-                        </div>
-                        <button type="submit" class="btn btn--primary">Send Message</button>
-                    </form>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <script src="font.js"></script>
-    <script src="app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cason Shepard - Conway's Game of Life Portfolio</title>
+    <meta name="description" content="Personal portfolio of Cason Shepard, Caltech Computer Science graduate specializing in Machine Learning, featuring Conway's Game of Life integration and creative technology projects." />
+    <meta name="keywords" content="Cason Shepard, Conway's Game of Life, Computer Science, Machine Learning, Caltech, Software Developer, Creative Technology, Cellular Automata" />
+    <meta name="author" content="Cason Shepard" />
+    
+    <!-- Open Graph meta tags -->
+    <meta property="og:title" content="Cason Shepard - Conway's Game of Life Portfolio" />
+    <meta property="og:description" content="Personal portfolio featuring Conway's Game of Life integration and creative technology projects." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://casonshep.github.io/" />
+    
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cason Shepard - Conway's Game of Life Portfolio" />
+    <meta name="twitter:description" content="Personal portfolio featuring Conway's Game of Life integration and creative technology projects." />
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
