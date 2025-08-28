@@ -7,7 +7,7 @@ const profileData: ProfileData = {
   name: 'Cason Shepard',
   title: 'Creative & Software Developer',
   bio: 'I am a recent graduate from California Institute of Technology with a Bachelor\'s of Science in Computer Science and a focus on Machine Learning.',
-  image: 'public/imgs/cason1.jpg',
+  image: '/imgs/cason1.jpg',
   education: 'California Institute of Technology - B.S. Computer Science'
 };
 
