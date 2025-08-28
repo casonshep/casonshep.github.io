@@ -27,7 +27,7 @@ export const ConwayCanvas: React.FC<ConwayCanvasProps> = ({
     }
   }, [config]);
 
-  // Draw grid when state changes
+  // Draw grid and animate grid when state changes
   useEffect(() => {
     if (!isInitialized || !canvasRef.current || !conwayState.grid.cells.length) return;
 
@@ -35,7 +35,7 @@ export const ConwayCanvas: React.FC<ConwayCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    drawGrid(ctx, conwayState.grid.cells);
+    drawGridAndAnimate(ctx, conwayState.grid.cells);
   }, [conwayState.grid, isInitialized, config]);
 
   // Handle animation completion
@@ -45,7 +45,7 @@ export const ConwayCanvas: React.FC<ConwayCanvasProps> = ({
     }
   }, [conwayState.isAnimating, conwayState.currentFrame, onAnimationComplete]);
 
-  const drawGrid = (ctx: CanvasRenderingContext2D, grid: number[][]) => {
+  const drawGridAndAnimate = (ctx: CanvasRenderingContext2D, grid: number[][]) => {
     // Clear canvas
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     
@@ -85,17 +85,14 @@ export const ConwayCanvas: React.FC<ConwayCanvasProps> = ({
       ctx.lineTo(ctx.canvas.width, y * config.cellSize);
       ctx.stroke();
     }
-  };
-
-  const handleStartAnimation = () => {
     conwayState.startAnimation();
   };
 
-  return (
+  return(
     <div className={`game-of-life-container flex justify-center mx-10 max-w-4xl w-full px-5 ${className}`}>
       <div className="game-window w-full max-w-full">
         <div className="window-header">
-          <span className="window-title">Enjoy this cellular welcome from Conway's Automata.</span>
+          <span className="window-title">Conway's Game of Life</span>
           <div className="window-controls">
             <span className="control"></span>
             <span className="control"></span>
@@ -107,16 +104,6 @@ export const ConwayCanvas: React.FC<ConwayCanvasProps> = ({
           className="block bg-white w-full h-auto max-w-full pixel-perfect"
           style={{ aspectRatio: '2 / 1' }}
         />
-        {!conwayState.isAnimating && conwayState.currentFrame === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
-            <button
-              onClick={handleStartAnimation}
-              className="btn btn-primary"
-            >
-              Start Animation
-            </button>
-          </div>
-        )}
         {conwayState.isAnimating && (
           <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
             {Math.round(conwayState.progress * 100)}%

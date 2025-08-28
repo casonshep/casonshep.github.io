@@ -5,7 +5,7 @@ import type { PageProps, ConwayConfig, ProfileData } from '../utils/types';
 
 const profileData: ProfileData = {
   name: 'Cason Shepard',
-  title: 'Software Developer & Creative Technologist',
+  title: 'Creative & Software Developer',
   bio: 'I am a recent graduate from California Institute of Technology with a Bachelor\'s of Science in Computer Science and a focus on Machine Learning.',
   image: 'images/cason1.jpg',
   education: 'California Institute of Technology - B.S. Computer Science'
@@ -20,7 +20,7 @@ export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
     animationSpeed: 100
   });
 
-  const [animationStarted, setAnimationStarted] = useState(false);
+  // const [animationStarted, setAnimationStarted] = useState(false);
 
   // Update Conway config based on screen size
   useEffect(() => {
@@ -56,7 +56,7 @@ export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
   // Auto-start animation after component mounts
   useEffect(() => {
     const timer = setTimeout(() => {
-      setAnimationStarted(true);
+      // setAnimationStarted(true);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -71,10 +71,10 @@ export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
       <div className="container mx-auto px-5">
         <div className="text-center py-10">
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-5 uppercase tracking-widest">
-            Professional Portfolio
+            Personal Portfolio
           </h1>
           <p className="text-lg text-slate-500 mb-15 uppercase tracking-widest">
-            Software Developer & Creative Technologist
+            Creative and & Software Developer
           </p>
 
           {/* Profile Section */}
