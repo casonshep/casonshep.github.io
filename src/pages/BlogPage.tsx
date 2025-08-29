@@ -27,22 +27,21 @@ const blogPosts: BlogPost[] = [
   }
 ];
 
-export const BlogPage: React.FC<PageProps> = ({ onPageChange }) => {
+export const BlogPage: React.FC<PageProps> = ({ }) => {
   const handleReadMore = (slug: string) => {
     // Placeholder for blog post navigation
     alert(`This would navigate to blog post: ${slug}. This is a demo.`);
   };
 
   return (
-    <section className="min-h-screen pt-16 pb-16">
+    <section className="my-sections">
       <div className="container mx-auto px-5">
-        <h2 className="section-title">Blog</h2>
+        <h2 className="section-title">Thoughts</h2>
         
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-base text-slate-600">
-              Thoughts on cellular automata, computational systems, and the intersection 
-              of mathematics and technology. Coming soon!
+              Thoughts on anything I am reading about or interested in currently. First posts coming soon?
             </p>
           </div>
 
@@ -76,19 +75,12 @@ export const BlogPage: React.FC<PageProps> = ({ onPageChange }) => {
                 Coming Soon
               </h3>
               <div className="space-y-3 text-slate-600">
-                <p>• Deep dives into Conway's Game of Life patterns</p>
-                <p>• Algorithm visualization techniques</p>
-                <p>• Creative coding tutorials</p>
-                <p>• Machine learning insights</p>
-                <p>• Mathematical recreations</p>
+              <ul>
+                <li>Some original and interesting thought but idk what that is yet.</li>
+
+              </ul>
               </div>
               <div className="mt-8">
-                <button
-                  onClick={() => onPageChange('contact')}
-                  className="btn btn-primary"
-                >
-                  Subscribe for Updates
-                </button>
               </div>
             </div>
           </div>

@@ -27,7 +27,7 @@ export class ConwayEngine {
 
   private createWelcomePattern(): ConwayGrid {
     const grid = this.createEmptyGrid();
-    const message = "welcome to my website";
+    const message = "hi im cason";
     
     // Split message into words
     const words = message.split(' ');

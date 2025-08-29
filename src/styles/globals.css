@@ -1,14 +1,16 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Computer+Modern+Serif&family=Computer+Modern+Mono&display=swap');
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
 
 @layer base {
   html {
     font-size: 14px;
-    font-family: 'Space Mono', 'Courier New', monospace;
+    font-family: 'Computer Modern Serif', serif;
   }
   
   body {
@@ -74,14 +76,22 @@
     @apply bg-gray-300 text-slate-900 px-12 py-1 rounded-base text-xs font-bold uppercase tracking-wider;
   }
   
-  /* Section title styles */
+  /* section styles */
+  .my-sections {
+    @apply min-h-screen pt-[40px] pb-32;
+  }
+
+  .subsection1 {
+    @apply mt-32;
+  }
+
   .section-title {
-    @apply text-4xl font-bold text-slate-900 text-center mb-16 uppercase tracking-widest relative;
+    @apply text-4xl font-bold text-slate-900 text-center mb-32 uppercase tracking-widest relative;
   }
   
   .section-title::after {
     content: '';
-    @apply absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-20 h-0.5 bg-slate-900;
+    @apply absolute -bottom-16 left-1/2 transform -translate-x-1/2 w-20 h-0.5 bg-slate-900;
   }
   
   /* Game window styles */

@@ -92,7 +92,6 @@ export const ConwayCanvas: React.FC<ConwayCanvasProps> = ({
     <div className={`game-of-life-container flex justify-center mx-10 max-w-4xl w-full px-5 ${className}`}>
       <div className="game-window w-full max-w-full">
         <div className="window-header">
-          <span className="window-title">Conway's Game of Life</span>
           <div className="window-controls">
             <span className="control"></span>
             <span className="control"></span>

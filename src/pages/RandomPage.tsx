@@ -40,7 +40,7 @@ export const RandomPage: React.FC<PageProps> = ({ onPageChange }) => {
   };
 
   return (
-    <section className="min-h-screen pt-16 pb-16">
+    <section className="my-sections">
       <div className="container mx-auto px-5">
         <h2 className="section-title">Random Stuff</h2>
         

@@ -5,7 +5,6 @@ import { AboutPage } from './pages/AboutPage';
 import { BlogPage } from './pages/BlogPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { RandomPage } from './pages/RandomPage';
-import { ContactPage } from './pages/ContactPage';
 import type { PageType } from './utils/types';
 
 function App() {
@@ -27,14 +26,12 @@ function App() {
         return <HomePage onPageChange={handlePageChange} />;
       case 'about':
         return <AboutPage onPageChange={handlePageChange} />;
-      case 'blog':
+      case 'thoughts':
         return <BlogPage onPageChange={handlePageChange} />;
       case 'projects':
         return <ProjectsPage onPageChange={handlePageChange} />;
       case 'random':
         return <RandomPage onPageChange={handlePageChange} />;
-      case 'contact':
-        return <ContactPage onPageChange={handlePageChange} />;
       default:
         return <HomePage onPageChange={handlePageChange} />;
     }

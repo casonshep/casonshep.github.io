@@ -3,11 +3,10 @@ import type { PageType, NavItem } from '../utils/types';
 
 const navItems: NavItem[] = [
   { id: 'home', label: 'Home', href: '#home' },
-  { id: 'about', label: 'About Me', href: '#about' },
-  { id: 'blog', label: 'Blog', href: '#blog' },
+  { id: 'about', label: 'About', href: '#about' },
+  { id: 'thoughts', label: 'Thoughts', href: '#thoughts' },
   { id: 'projects', label: 'Projects', href: '#projects' },
-  { id: 'random', label: 'Random Stuff', href: '#random' },
-  { id: 'contact', label: 'Contact Me', href: '#contact' }
+  { id: 'random', label: 'Random', href: '#random' },
 ];
 
 export const useNavigation = (initialPage: PageType = 'home') => {

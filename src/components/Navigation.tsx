@@ -9,11 +9,10 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const navItems = [
     { id: 'home' as const, label: 'Home', href: '#home' },
-    { id: 'about' as const, label: 'About Me', href: '#about' },
-    { id: 'blog' as const, label: 'Blog', href: '#blog' },
+    { id: 'about' as const, label: 'About', href: '#about' },
+    { id: 'thoughts' as const, label: 'Thoughts', href: '#thoughts' },
     { id: 'projects' as const, label: 'Projects', href: '#projects' },
-    { id: 'random' as const, label: 'Random Stuff', href: '#random' },
-    { id: 'contact' as const, label: 'Contact Me', href: '#contact' }
+    { id: 'random' as const, label: 'Random', href: '#random' },
   ];
 
   // Close menu when clicking outside

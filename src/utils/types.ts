@@ -1,5 +1,5 @@
 // Core types for the application
-export type PageType = 'home' | 'about' | 'blog' | 'projects' | 'random' | 'contact';
+export type PageType = 'home' | 'about' | 'thoughts' | 'projects' | 'random' | 'contact';
 
 // Conway's Game of Life types
 export interface ConwayGrid {
@@ -98,14 +98,6 @@ export interface NavigationProps {
 
 export interface PageProps {
   onPageChange: (page: PageType) => void;
-}
-
-export interface ProfileData {
-  name: string;
-  title: string;
-  bio: string;
-  image: string;
-  education: string;
 }
 
 // Utility types

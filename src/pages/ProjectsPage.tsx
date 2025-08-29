@@ -6,7 +6,7 @@ const projects: Project[] = [
     title: 'This Website',
     description: 'My first attempt at a personal website I will add to. Built with React, TypeScript, and Tailwind CSS, featuring Conway\'s Game of Life integration.',
     technologies: ['React', 'TypeScript', 'Tailwind CSS', 'JavaScript'],
-    status: 'completed',
+    status: 'in-progress',
     links: {
       github: '#',
       live: '#'
@@ -70,7 +70,7 @@ export const ProjectsPage: React.FC<PageProps> = ({ onPageChange }) => {
   };
 
   return (
-    <section className="min-h-screen pt-16 pb-16">
+    <section className="my-sections">
       <div className="container mx-auto px-5">
         <h2 className="section-title">Projects</h2>
         

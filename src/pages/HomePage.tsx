@@ -1,22 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ConwayCanvas } from '../components/ConwayCanvas';
-import { ProfileSectionResponsive } from '../components/ProfileSection';
-import type { PageProps, ConwayConfig, ProfileData } from '../utils/types';
+import type { PageProps, ConwayConfig } from '../utils/types';
 
-const profileData: ProfileData = {
-  name: 'Cason Shepard',
-  title: 'Creative & Software Developer',
-  bio: 'I am a recent graduate from California Institute of Technology with a Bachelor\'s of Science in Computer Science and a focus on Machine Learning.',
-  image: '/imgs/cason1.jpg',
-  education: 'California Institute of Technology - B.S. Computer Science'
-};
 
 export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
   const [conwayConfig, setConwayConfig] = useState<ConwayConfig>({
     width: 150,
     height: 100,
     cellSize: 8,
-    maxIterations: 50,
+    maxIterations: 10,
     animationSpeed: 100
   });
 
@@ -42,8 +34,8 @@ export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
         width,
         height,
         cellSize,
-        maxIterations: 50,
-        animationSpeed: 100
+        maxIterations: conwayConfig.maxIterations,
+        animationSpeed: conwayConfig.animationSpeed
       });
     };
 
@@ -67,7 +59,7 @@ export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
   };
 
   return (
-    <section className="min-h-screen pt-16 pb-16">
+    <section className="my-sections">
       <div className="container mx-auto px-5">
         <div className="text-center py-10">
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-5 uppercase tracking-widest">
@@ -78,7 +70,25 @@ export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
           </p>
 
           {/* Profile Section */}
-          <ProfileSectionResponsive profile={profileData} />
+          <div className="flex items-center text-left gap-8 my-8 mx-0 p-8 bg-cream-100 rounded-lg shadow-md max-w-4xl mx-auto">
+            <div className="profile-image-container">
+              <img 
+                src='/imgs/cason1.jpg'
+                className="profile-image"
+              />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-teal-600 mb-4 text-3xl font-bold">
+                Hi, I'm Cason
+              </h2>
+              <p className="text-slate-900 text-lg leading-relaxed m-0">
+              I am a recent graduate from California Institute of Technology with a Bachelor's of Science in Computer Science and a focus on Machine Learning.
+              </p>
+              <p className="text-slate-600 text-base mt-3 italic">
+                California Institute of Technology - B.S. Computer Science
+              </p>
+            </div>
+          </div>
 
           {/* Conway's Game of Life */}
           <div className="mt-10">
@@ -92,7 +102,7 @@ export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
           {/* Call to Action */}
           <div className="mt-12 text-center">
             <p className="text-base text-slate-600 mb-6">
-              Explore my work and learn more about my passion for computational systems and creative technology.
+              Explore my work and learn more about my interests.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <button
@@ -106,12 +116,6 @@ export const HomePage: React.FC<PageProps> = ({ onPageChange }) => {
                 className="btn btn-primary"
               >
                 View Projects
-              </button>
-              <button
-                onClick={() => onPageChange('contact')}
-                className="btn btn-primary"
-              >
-                Get In Touch
               </button>
             </div>
           </div>
