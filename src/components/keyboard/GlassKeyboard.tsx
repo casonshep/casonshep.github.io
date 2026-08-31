@@ -546,8 +546,8 @@ function GlassScene({
 
     // Smooth cursor-tracking tilt
     const lerpFactor = 1 - Math.pow(1 - GLASS.cursorTilt.smoothing, dt * 60);
-    const targetX = state.pointer.y * GLASS.cursorTilt.strength;
-    const targetY = -state.pointer.x * GLASS.cursorTilt.strength;
+    const targetX = -state.pointer.y * GLASS.cursorTilt.strength;
+    const targetY = state.pointer.x * GLASS.cursorTilt.strength;
     cursorTilt.current.x += (targetX - cursorTilt.current.x) * lerpFactor;
     cursorTilt.current.y += (targetY - cursorTilt.current.y) * lerpFactor;
 
