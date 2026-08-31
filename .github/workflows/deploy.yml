@@ -26,7 +26,14 @@ jobs:
           cache: npm
 
       - run: npm install
-      - run: npx next build
+      - name: Build
+        run: |
+          set -o pipefail
+          npx next build 2>&1 | tee build.log || {
+            echo "::error::Build failed — last 80 lines of output:"
+            tail -80 build.log >&2
+            exit 1
+          }
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
