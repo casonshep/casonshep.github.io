@@ -58,6 +58,37 @@ export const INTRO = {
   /** The sentence the keyboard types out. Supported characters: anything on
    *  the keyboard (letters get Shift for capitals). */
   sentence: "hi, im cason. I build things and do stuff",
+
+  /** Delay before typing begins after the first interaction, ms. [100 … 800] */
+  startDelay: 350,
+
+  /** Base typing speed per character, ms. [30 … 150]
+   *  Actual delay = base + random jitter up to `jitter`. */
+  charDelay: 20,
+
+  /** Random jitter added to each character delay, ms. [0 … 120] */
+  jitter: 50,
+
+  /** Extra pause after a period, ms. [100 … 600] */
+  periodPause: 380,
+
+  /** Extra pause after a comma, ms. [100 … 400] */
+  commaPause: 240,
+
+  /** Extra pause after a space, ms. [30 … 200] */
+  spacePause: 90,
+
+  /** Pause between the sentence finishing and the links starting, ms. [200 … 1200] */
+  sentenceToLinksPause: 650,
+
+  /** Pause between finishing one link and starting the next, ms. [100 … 800] */
+  linkGap: 400,
+
+  /** Font size of the typed sentence. CSS clamp string. */
+  fontSize: "clamp(1.4rem, 4vw, 2.6rem)",
+
+  /** Font size of the link labels below the sentence. CSS clamp string. */
+  linkFontSize: "clamp(0.78rem, 1.2vw, 0.9rem)",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -66,7 +97,7 @@ export const INTRO = {
 export const BACKDROP = {
   /** Effect frame rate. [8 … 30] — 8-12 feels like a flipbook, 15-24 retro
    *  film, 30 smooth but costs more CPU. */
-  targetFps: 26,
+  targetFps: 20,
 
   /** How many viewport-heights of the page the video spans. [1 … 3]
    *  1 = video ends with the landing section, 1.5-2 = scrolling reveals
@@ -78,8 +109,8 @@ export const BACKDROP = {
    *  liftGain [0.8 … 2.5]: >1 brightens everything; 2+ blows out highlights.
    *  liftGamma [0.5 … 1.2]: <1 lifts shadows (reveals dark detail),
    *  1 = untouched, >1 crushes shadows for a high-contrast look. */
-  liftGain: 1.3,
-  liftGamma: 1.2,
+  liftGain: 1,
+  liftGamma: .8,
 
   /** ASCII: font size in px (cell size follows from it).
    *  [8 … 24] — 8-10 is fine detail (almost looks like an image, more CPU),
@@ -111,7 +142,7 @@ export const BACKDROP = {
   /** ASCII: canvas filter applied when tinting glyphs with video color.
    *  brightness [1 … 2.5], saturate [1 … 2.5] — push brightness when the
    *  footage is dark, saturation to exaggerate the stage-light colors. */
-  asciiTintFilter: "brightness(1.5) saturate(1.7)",
+  asciiTintFilter: "brightness(.8) saturate(1.7)",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -131,7 +162,7 @@ export const GLASS = {
   /** Key thickness as a fraction of one key-unit width. [0.3 … 1.5]
    *  0.3-0.5 = low-profile laptop keys, 0.8-1.2 = chunky mechanical,
    *  1.5 = novelty ice cubes. */
-  keyDepthFactor: 1.0,
+  keyDepthFactor: 1,
 
   /** Gap between keys as a fraction of one key-unit width. [0.04 … 0.25]
    *  0.04 = nearly touching, 0.1 = classic keyboard, 0.2+ = floating tiles. */
@@ -140,11 +171,11 @@ export const GLASS = {
   /** Keycap corner radius as a fraction of the key's smaller side.
    *  [0.05 … 0.5] — 0.05 = sharp slabs, 0.2 = softened squares,
    *  0.5 = fully pill-shaped. */
-  keyRadiusFactor: 0.23,
+  keyRadiusFactor: 0.24,
 
   /** How far a pressed key sinks, as a fraction of key depth. [0.2 … 0.9]
    *  0.2 = shallow tap, 0.5 = satisfying travel, 0.9 = nearly bottoms out. */
-  pressTravelFactor: 0.5,
+  pressTravelFactor: 0.6,
 
   /** Press animation speed (higher = snappier). [8 … 40]
    *  8-12 = soft/mushy, 20-25 = mechanical click, 40 = instant. */
@@ -161,7 +192,7 @@ export const GLASS = {
      *  [1 … 2.4] — 1 = no bending at all (invisible glass), 1.2 = subtle,
      *  1.5 = realistic glass, 2 + = dense crystal/diamond magnification.
      *  This is the main "how glassy" knob. */
-    ior: 40,
+    ior: 20,
 
     /** RGB fringe at refracted edges (lens rainbow). [0 … 0.3]
      *  0 = clean, 0.03-0.06 = subtle realism, 0.1-0.2 = stylized prism,
@@ -176,7 +207,7 @@ export const GLASS = {
     /** Wavy warping of the refracted image (hand-blown glass). [0 … 1.5]
      *  0 = optically perfect, 0.1-0.3 = organic imperfection,
      *  0.6-1 = obviously wavy, 1.5 = funhouse mirror. */
-    distortion: .5,
+    distortion: .6,
 
     /** Size of those waves. [0.1 … 2] — 0.1-0.3 = fine ripple texture,
      *  0.5-1 = broad undulations, 2 = one slow wave across the key. */
@@ -185,7 +216,7 @@ export const GLASS = {
     /** Animates the distortion over time. [0 … 0.5] — 0 = frozen,
      *  0.05-0.1 = barely-alive shimmer, 0.2-0.4 = heat-haze wobble,
      *  0.5 = actively liquid. */
-    temporalDistortion: .17,
+    temporalDistortion: .3,
 
     /** Tint multiplied over everything seen through the glass — can only
      *  darken/tint, never brighten. Lighter colors = clearer glass;
@@ -213,15 +244,75 @@ export const GLASS = {
 
   /** Glass slab behind the typed sentence. Same knobs and ranges as `key`. */
   textSlab: {
-    roughness: 0,
-    ior: 15,
-    chromaticAberration: 0.04,
-    anisotropicBlur: 1.0,
-    color: "rgba(160, 176, 232, 1)",
+    /** Surface polish. [0 … 0.6] */
+    roughness: .05,
+
+    /** Index of refraction. [1 … 2.4] */
+    ior: 10,
+
+    /** RGB fringe at refracted edges. [0 … 0.3] */
+    chromaticAberration: 0.1,
+
+    /** Blur of whatever is seen through the glass. [0 … 2] */
+    anisotropicBlur: 2,
+
+    /** Wavy warping of the refracted image. [0 … 1.5] */
+    distortion: .5,
+
+    /** Size of those waves. [0.1 … 2] */
+    distortionScale: .005,
+
+    /** Animates the distortion over time. [0 … 0.5] */
+    temporalDistortion: 0,
+
+    /** Tint color — lighter = clearer glass. Alpha = tint strength. */
+    color: "rgba(89, 91, 226, 0.86)",
+
     /** Refraction (optical) thickness, px. [4 … 40] */
-    thickness: 10,
+    thickness: 20,
+
     /** Physical depth of the slab geometry, px. [6 … 30] */
-    depth: 12,
+    depth: 10,
+
+    /** Corner radius of the slab, px. [2 … 20] */
+    radius: 40.
+  },
+
+  /** Glass slabs behind the link labels (github/linkedin/email).
+   *  Same knobs as textSlab. Set to null to disable link glass. */
+  linkSlab: {
+    /** Surface polish. [0 … 0.6] */
+    roughness: 0,
+
+    /** Index of refraction. [1 … 2.4] */
+    ior: 5,
+
+    /** RGB fringe at refracted edges. [0 … 0.3] */
+    chromaticAberration: 0.34,
+
+    /** Blur of whatever is seen through the glass. [0 … 2] */
+    anisotropicBlur: 1.0,
+
+    /** Wavy warping of the refracted image. [0 … 1.5] */
+    distortion: 0,
+
+    /** Size of those waves. [0.1 … 2] */
+    distortionScale: 0.05,
+
+    /** Animates the distortion over time. [0 … 0.5] */
+    temporalDistortion: 0,
+
+    /** Tint color — lighter = clearer glass. Alpha = tint strength. */
+    color: "rgb(0, 0, 0)",
+
+    /** Refraction (optical) thickness, px. [4 … 40] */
+    thickness: 3,
+
+    /** Physical depth of the slab geometry, px. [6 … 30] */
+    depth: 10,
+
+    /** Corner radius of the slab, px. [2 … 20] */
+    radius: 15,
   },
 
   /** Key legend text colors (drawn onto the keycaps).
@@ -246,35 +337,35 @@ export const TERMINAL = {
   /** ASCII font size for this section in px. [8 … 24]
    *  Smaller = finer detail (more characters), larger = chunkier.
    *  Set to 0 or omit to inherit BACKDROP's value. */
-  asciiFontPx: 10,
+  asciiFontPx: 15,
 
   /** Brightness lift for the section image before ASCII conversion.
    *  [0.8 … 2.5] — >1 brightens, useful for dark photos. */
-  liftGain: 1.3,
+  liftGain: 1.7,
 
   /** Gamma for the section image. [0.5 … 1.2]
    *  <1 lifts shadows, 1 = untouched, >1 crushes shadows. */
-  liftGamma: 1.0,
+  liftGamma: 1.2,
 
   /** ASCII ramp override for this section (leave empty to use BACKDROP's).
    *  Same format: characters from darkest to brightest. */
-  asciiRamp: "",
+  asciiRamp: "`·.,:!-~=+>?$&%@#",
 
   /** Canvas filter applied when tinting glyphs for this section.
    *  brightness [1 … 2.5], saturate [1 … 2.5]. */
-  asciiTintFilter: "brightness(2) saturate(2.5)",
+  asciiTintFilter: "brightness(1.5) saturate(3)",
 
   /** How many character rows the video → section transition takes.
    *  [0 … 30] — 0 = hard cut at the section boundary, 5-14 = gradual
    *  crossfade (the image bleeds up into the bottom of the landing
    *  section), 20+ = very slow dissolve. */
-  blendRows: 5,
+  blendRows: 10,
 
   /** Image crop: fraction of the image to trim from the top. [0 … 0.4] */
-  imageCropTop: 0,
+  imageCropTop: .4,
 
   /** Image crop: fraction of the image to trim from the bottom. [0 … 0.4] */
-  imageCropBottom: 0,
+  imageCropBottom: .2,
 
   /** Image crop: fraction of the image to trim from the left. [0 … 0.4] */
   imageCropLeft: 0,

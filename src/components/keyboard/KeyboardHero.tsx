@@ -10,12 +10,11 @@ import { links } from "@/lib/links";
 
 const SENTENCE = INTRO.sentence;
 
-// Delay between the keyboard "typing" each character, in ms.
 function delayAfter(char: string): number {
-  if (char === ".") return 380 + Math.random() * 120;
-  if (char === ",") return 240 + Math.random() * 80;
-  if (char === " ") return 90 + Math.random() * 60;
-  return 55 + Math.random() * 95;
+  if (char === ".") return INTRO.periodPause + Math.random() * 120;
+  if (char === ",") return INTRO.commaPause + Math.random() * 80;
+  if (char === " ") return INTRO.spacePause + Math.random() * 60;
+  return INTRO.charDelay + Math.random() * INTRO.jitter;
 }
 
 const HERO_STYLE_TAG = `
@@ -70,6 +69,9 @@ export default function KeyboardHero() {
   // The typed-text element, measured by the 3D scene to back it with glass.
   const [pillEl, setPillEl] = useState<HTMLElement | null>(null);
   const pillPlaceholderRef = useRef<HTMLDivElement>(null);
+  const linksPlaceholderRef = useRef<HTMLDivElement>(null);
+  const [linksFixedEl, setLinksFixedEl] = useState<HTMLDivElement | null>(null);
+  const [linkEls, setLinkEls] = useState<HTMLElement[]>([]);
 
   // Keep the fixed pill text synced with its placeholder's scroll position.
   // Both the text (fixed DOM) and the glass (fixed canvas) update in rAF,
@@ -89,6 +91,31 @@ export default function KeyboardHero() {
     sync();
     return () => cancelAnimationFrame(raf);
   }, [pillEl]);
+
+  useEffect(() => {
+    const fixed = linksFixedEl;
+    const placeholder = linksPlaceholderRef.current;
+    if (!fixed || !placeholder) return;
+    let raf = 0;
+    const sync = () => {
+      raf = requestAnimationFrame(sync);
+      const r = placeholder.getBoundingClientRect();
+      fixed.style.left = `${r.left}px`;
+      fixed.style.top = `${r.top}px`;
+      fixed.style.width = `${r.width}px`;
+    };
+    sync();
+    return () => cancelAnimationFrame(raf);
+  }, [linksFixedEl]);
+
+  useEffect(() => {
+    const container = linksFixedEl;
+    if (!container) return;
+    const els = Array.from(container.querySelectorAll<HTMLElement>(".kb-link-glass"));
+    if (els.length > 0 && (els.length !== linkEls.length || els.some((el, i) => el !== linkEls[i]))) {
+      setLinkEls(els);
+    }
+  });
 
   useEffect(() => {
     if (started) return;
@@ -124,7 +151,7 @@ export default function KeyboardHero() {
       });
 
     (async () => {
-      await wait(350);
+      await wait(INTRO.startDelay);
       if (cancelled) return;
       setPhase("sentence");
       for (const char of SENTENCE) {
@@ -133,7 +160,7 @@ export default function KeyboardHero() {
         setSentence((t) => t + char);
         await wait(delayAfter(char));
       }
-      await wait(650);
+      await wait(INTRO.sentenceToLinksPause);
       if (cancelled) return;
       setPhase("nav");
       for (let i = 0; i < links.length; i++) {
@@ -148,7 +175,7 @@ export default function KeyboardHero() {
           });
           await wait(delayAfter(char));
         }
-        await wait(400);
+        await wait(INTRO.linkGap);
       }
       if (cancelled) return;
       setPhase("done");
@@ -182,46 +209,6 @@ export default function KeyboardHero() {
 
       {/* Landing section: the keyboard scene fills the first viewport. */}
       <section className="relative flex h-dvh w-full flex-col">
-      <nav
-        className="relative z-30 flex w-full items-center justify-end"
-        style={{
-          padding: "clamp(1rem, 2.5vw, 1.5rem) clamp(1.25rem, 4vw, 2.5rem)",
-          gap: "clamp(1.25rem, 3vw, 2.25rem)",
-          fontSize: "clamp(0.78rem, 1.2vw, 0.9rem)",
-          letterSpacing: "0.02em",
-          minHeight: "3.25rem",
-          textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8)",
-        }}
-      >
-        {links.map((link, i) =>
-          navTexts[i] ? (
-            navTexts[i].length === link.label.length ? (
-              <a
-                key={link.label}
-                href={link.href}
-                aria-label={link.description}
-                className="kb-nav-link"
-                target={link.href.startsWith("http") ? "_blank" : undefined}
-                rel={
-                  link.href.startsWith("http")
-                    ? "noopener noreferrer"
-                    : undefined
-                }
-              >
-                {navTexts[i]}
-              </a>
-            ) : (
-              <span
-                key={link.label}
-                style={{ color: "rgba(255,255,255,0.62)" }}
-              >
-                {navTexts[i]}
-              </span>
-            )
-          ) : null,
-        )}
-      </nav>
-
       <main
         className="relative z-10 flex w-full flex-1 flex-col items-center justify-center"
         style={{
@@ -257,11 +244,11 @@ export default function KeyboardHero() {
               zIndex: 6,
               minHeight: "2.6em",
               padding: "0.35em 0.9em",
-              fontSize: "clamp(1rem, 2.4vw, 1.45rem)",
+              whiteSpace: "nowrap",
+              fontSize: INTRO.fontSize,
               lineHeight: 1.5,
               color: "#f0f0f2",
               textAlign: "center",
-              textWrap: "balance",
               textShadow: "0 1px 3px rgba(0,0,0,0.8)",
             } as const;
             return (
@@ -274,6 +261,7 @@ export default function KeyboardHero() {
                     ...pillStyle,
                     position: "relative",
                     visibility: "hidden",
+                    width: "max-content",
                     marginBottom: "clamp(1.25rem, 4vh, 2.5rem)",
                   }}
                 >
@@ -295,8 +283,77 @@ export default function KeyboardHero() {
               </>
             );
           })()}
+          {(() => {
+            const linksStyle = {
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "clamp(1.25rem, 3vw, 2.25rem)",
+              fontSize: INTRO.linkFontSize,
+              letterSpacing: "0.02em",
+              textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8)",
+              pointerEvents: "auto" as const,
+              position: "relative" as const,
+              zIndex: 6,
+            };
+            const linksContent = links.map((link, i) =>
+              navTexts[i] ? (
+                navTexts[i].length === link.label.length ? (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    aria-label={link.description}
+                    className="kb-nav-link kb-link-glass"
+                    style={{ padding: "0.25em 0.6em" }}
+                    target={link.href.startsWith("http") ? "_blank" : undefined}
+                    rel={
+                      link.href.startsWith("http")
+                        ? "noopener noreferrer"
+                        : undefined
+                    }
+                  >
+                    {navTexts[i]}
+                  </a>
+                ) : (
+                  <span
+                    key={link.label}
+                    className="kb-link-glass"
+                    style={{ color: "rgba(255,255,255,0.62)", padding: "0.25em 0.6em" }}
+                  >
+                    {navTexts[i]}
+                  </span>
+                )
+              ) : null,
+            );
+            return (
+              <>
+                <div
+                  ref={linksPlaceholderRef}
+                  aria-hidden
+                  style={{
+                    ...linksStyle,
+                    visibility: "hidden",
+                    marginBottom: "clamp(1.25rem, 4vh, 2.5rem)",
+                  }}
+                >
+                  {linksContent}
+                </div>
+                <div
+                  ref={setLinksFixedEl}
+                  style={{
+                    ...linksStyle,
+                    position: "fixed",
+                    margin: 0,
+                  }}
+                >
+                  {linksContent}
+                </div>
+              </>
+            );
+          })()}
           <GlassKeyboard
             textPillEl={pillEl}
+            linkEls={linkEls}
             onController={(controller) => {
               controllerRef.current = controller;
             }}

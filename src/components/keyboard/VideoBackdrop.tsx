@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BACKDROP, TERMINAL } from "./visualConfig";
 import { asciifyFrame, measureAsciiGrid } from "./ascii";
 
@@ -10,6 +10,22 @@ const SECTION2_SRC = "/section2.jpg";
 export default function VideoBackdrop() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+
+  const togglePause = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+      pausedRef.current = false;
+      setPaused(false);
+    } else {
+      video.pause();
+      pausedRef.current = true;
+      setPaused(true);
+    }
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -283,7 +299,9 @@ export default function VideoBackdrop() {
       }
     };
 
-    const tryPlay = () => void video.play().catch(() => {});
+    const tryPlay = () => {
+      if (!pausedRef.current) void video.play().catch(() => {});
+    };
     tryPlay();
     window.addEventListener("pointerdown", tryPlay);
     window.addEventListener("keydown", tryPlay);
@@ -316,6 +334,50 @@ export default function VideoBackdrop() {
         className="pointer-events-none fixed inset-0"
         style={{ width: "100%", height: "100%", background: "#000" }}
       />
+      <button
+        onClick={togglePause}
+        aria-label={paused ? "Play background video" : "Pause background video"}
+        style={{
+          position: "fixed",
+          bottom: "1rem",
+          right: "1rem",
+          zIndex: 50,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "2.25rem",
+          height: "2.25rem",
+          borderRadius: "50%",
+          border: "1px solid rgba(255,255,255,0.15)",
+          background: "rgba(0,0,0,0.4)",
+          backdropFilter: "blur(8px)",
+          color: "rgba(255,255,255,0.5)",
+          cursor: "pointer",
+          transition: "color 150ms, border-color 150ms, background 150ms",
+          padding: 0,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = "rgba(255,255,255,0.9)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)";
+          e.currentTarget.style.background = "rgba(0,0,0,0.55)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = "rgba(255,255,255,0.5)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+          e.currentTarget.style.background = "rgba(0,0,0,0.4)";
+        }}
+      >
+        {paused ? (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <path d="M3 1.5v11l9-5.5z" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+            <rect x="2" y="1" width="3.5" height="12" rx="0.75" />
+            <rect x="8.5" y="1" width="3.5" height="12" rx="0.75" />
+          </svg>
+        )}
+      </button>
     </>
   );
 }

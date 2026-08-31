@@ -234,7 +234,7 @@ function PillSlab({
     <RoundedBox
       ref={meshRef}
       args={[initialRect.width, initialRect.height, GLASS.textSlab.depth]}
-      radius={Math.min(10, initialRect.height / 2 - 1)}
+      radius={Math.min(GLASS.textSlab.radius, initialRect.height / 2 - 1)}
       smoothness={3}
       position={[
         initialRect.x + initialRect.width / 2 - viewportSize.width / 2,
@@ -250,7 +250,63 @@ function PillSlab({
         ior={GLASS.textSlab.ior}
         chromaticAberration={GLASS.textSlab.chromaticAberration}
         anisotropicBlur={GLASS.textSlab.anisotropicBlur}
+        distortion={GLASS.textSlab.distortion}
+        distortionScale={GLASS.textSlab.distortionScale}
+        temporalDistortion={GLASS.textSlab.temporalDistortion}
         color={tintStrength(GLASS.textSlab.color)}
+      />
+    </RoundedBox>
+  );
+}
+
+function LinkSlab({
+  el,
+  initialRect,
+  viewportSize,
+  buffer,
+}: {
+  el: HTMLElement;
+  initialRect: DOMRect;
+  viewportSize: { width: number; height: number };
+  buffer: THREE.Texture;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const r = el.getBoundingClientRect();
+    mesh.position.x = r.x + r.width / 2 - viewportSize.width / 2;
+    mesh.position.y = viewportSize.height / 2 - (r.y + r.height / 2);
+    mesh.position.z = -6;
+    mesh.scale.x = r.width / initialRect.width;
+    mesh.scale.y = r.height / initialRect.height;
+  });
+
+  return (
+    <RoundedBox
+      ref={meshRef}
+      args={[initialRect.width, initialRect.height, GLASS.linkSlab.depth]}
+      radius={Math.min(GLASS.linkSlab.radius, initialRect.height / 2 - 1)}
+      smoothness={3}
+      position={[
+        initialRect.x + initialRect.width / 2 - viewportSize.width / 2,
+        viewportSize.height / 2 - (initialRect.y + initialRect.height / 2),
+        -6,
+      ]}
+    >
+      <MeshTransmissionMaterial
+        buffer={buffer}
+        transmission={1}
+        thickness={GLASS.linkSlab.thickness}
+        roughness={GLASS.linkSlab.roughness}
+        ior={GLASS.linkSlab.ior}
+        chromaticAberration={GLASS.linkSlab.chromaticAberration}
+        anisotropicBlur={GLASS.linkSlab.anisotropicBlur}
+        distortion={GLASS.linkSlab.distortion}
+        distortionScale={GLASS.linkSlab.distortionScale}
+        temporalDistortion={GLASS.linkSlab.temporalDistortion}
+        color={tintStrength(GLASS.linkSlab.color)}
       />
     </RoundedBox>
   );
@@ -260,11 +316,15 @@ function GlassScene({
   rect,
   pillRect,
   textPillEl,
+  linkEls,
+  linkRects,
   onController,
 }: {
   rect: DOMRect | null;
   pillRect: DOMRect | null;
   textPillEl?: HTMLElement | null;
+  linkEls?: (HTMLElement | null)[];
+  linkRects?: (DOMRect | null)[];
   onController?: (controller: KeyboardController) => void;
 }) {
   const { size, gl, camera } = useThree();
@@ -366,6 +426,19 @@ function GlassScene({
           buffer={buffer.texture}
         />
       )}
+      {linkEls?.map((el, i) => {
+        const r = linkRects?.[i];
+        if (!el || !r || r.width <= 0) return null;
+        return (
+          <LinkSlab
+            key={i}
+            el={el}
+            initialRect={r}
+            viewportSize={size}
+            buffer={buffer.texture}
+          />
+        );
+      })}
       {/* Environment reflections keep the glass legible over dark footage.
           Suspense-isolated so the HDR fetch doesn't block the whole scene. */}
       <Suspense fallback={null}>
@@ -409,14 +482,16 @@ function GlassScene({
 export default function GlassKeyboard({
   onController,
   textPillEl,
+  linkEls,
 }: {
   onController?: (controller: KeyboardController) => void;
-  /** Optional DOM element to back with a glass slab (e.g. the typed text). */
   textPillEl?: HTMLElement | null;
+  linkEls?: (HTMLElement | null)[];
 }) {
   const holderRef = useRef<HTMLDivElement>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [pillRect, setPillRect] = useState<DOMRect | null>(null);
+  const [linkRects, setLinkRects] = useState<(DOMRect | null)[]>([]);
 
   useEffect(() => {
     const holder = holderRef.current;
@@ -424,21 +499,23 @@ export default function GlassKeyboard({
     const update = () => {
       setRect(holder.getBoundingClientRect());
       setPillRect(textPillEl ? textPillEl.getBoundingClientRect() : null);
+      if (linkEls) {
+        setLinkRects(linkEls.map((el) => el?.getBoundingClientRect() ?? null));
+      }
     };
     update();
     window.addEventListener("resize", update);
-    // Rects are viewport-relative while the 3D canvas is fixed, so the
-    // meshes must follow the page as it scrolls.
     window.addEventListener("scroll", update, { passive: true });
     const observer = new ResizeObserver(update);
     observer.observe(holder);
     if (textPillEl) observer.observe(textPillEl);
+    linkEls?.forEach((el) => { if (el) observer.observe(el); });
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update);
       observer.disconnect();
     };
-  }, [textPillEl]);
+  }, [textPillEl, linkEls]);
 
   return (
     <>
@@ -461,6 +538,8 @@ export default function GlassKeyboard({
             rect={rect}
             pillRect={pillRect}
             textPillEl={textPillEl}
+            linkEls={linkEls}
+            linkRects={linkRects}
             onController={onController}
           />
         </Canvas>
