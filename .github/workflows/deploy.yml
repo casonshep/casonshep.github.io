@@ -25,8 +25,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm install --ignore-scripts
-      - run: npx next build --no-lint
+      - run: npm install
+      - run: npx next build
         env:
           NEXT_TELEMETRY_DISABLED: 1
 
