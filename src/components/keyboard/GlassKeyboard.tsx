@@ -28,7 +28,7 @@ import {
   type KeyboardController,
   type KeyConfig,
 } from "./Keyboard";
-import { GLASS, tintStrength } from "./visualConfig";
+import { GLASS, ASSEMBLY, tintStrength } from "./visualConfig";
 
 // 3D glass keyboard, after https://github.com/olivierlarose/3d-distorted-glass-effect:
 // keycaps are MeshTransmissionMaterial meshes that refract the ASCII video
@@ -65,6 +65,12 @@ function layoutKeys(boardW: number, boardH: number): LayoutKey[] {
     }
   });
   return keys;
+}
+
+function assemblySpring(t: number): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  return 1 - Math.exp(-ASSEMBLY.damping * t) * Math.cos(ASSEMBLY.frequency * t);
 }
 
 function makeLegendTexture(
@@ -117,15 +123,26 @@ function GlassKey({
   depth,
   buffer,
   register,
+  assemblyDelay,
+  dropDistance,
 }: {
   layout: LayoutKey;
   depth: number;
   buffer: THREE.Texture;
   register: (id: string, trigger: GlassTrigger) => () => void;
+  assemblyDelay?: number;
+  dropDistance?: number;
 }) {
   const { cfg, x, y, w, h } = layout;
   const group = useRef<THREE.Group>(null);
+  const assemblyRef = useRef<THREE.Group>(null);
   const pressedRef = useRef(false);
+
+  const tumbleAngle = useMemo(() => {
+    if (!ASSEMBLY.enabled) return 0;
+    const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return ((s - Math.floor(s)) * 2 - 1) * ASSEMBLY.tumbleRange * Math.PI / 180;
+  }, [x, y]);
 
   useEffect(
     () =>
@@ -140,12 +157,28 @@ function GlassKey({
     [cfg.id, register],
   );
 
-  useFrame((_, dt) => {
+  useFrame((state, dt) => {
     const g = group.current;
     if (!g) return;
     const target = pressedRef.current ? -depth * GLASS.pressTravelFactor : 0;
     g.position.z +=
       (target - g.position.z) * Math.min(1, dt * GLASS.pressSpeed);
+
+    const a = assemblyRef.current;
+    if (a && assemblyDelay != null && dropDistance) {
+      const elapsed = state.clock.elapsedTime * 1000 - assemblyDelay;
+      if (elapsed >= ASSEMBLY.keyDuration) {
+        a.position.y = 0;
+        a.rotation.z = 0;
+        a.visible = true;
+      } else {
+        a.visible = elapsed > -16;
+        const t = Math.max(elapsed / ASSEMBLY.keyDuration, 0);
+        const progress = assemblySpring(t);
+        a.position.y = Math.abs((1 - progress) * dropDistance);
+        a.rotation.z = (1 - progress) * tumbleAngle;
+      }
+    }
   });
 
   const legend = useMemo(() => makeLegendTexture(cfg, w, h), [cfg, w, h]);
@@ -155,53 +188,110 @@ function GlassKey({
 
   return (
     <group position={[x, y, 0]}>
-      <group ref={group}>
-        <RoundedBox
-          args={[w, h, depth]}
-          radius={radius}
-          smoothness={3}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            pressedRef.current = true;
-            playKeySound(
-              getSoundCategory(cfg.id),
-              !!cfg.muted,
-              KEY_PAN[cfg.id] ?? 0,
-            );
-          }}
-          onPointerUp={() => {
-            pressedRef.current = false;
-          }}
-          onPointerLeave={() => {
-            pressedRef.current = false;
-          }}
-        >
-          <MeshTransmissionMaterial
-            buffer={buffer}
-            transmission={1}
-            thickness={depth * GLASS.key.thicknessFactor}
-            roughness={GLASS.key.roughness}
-            ior={GLASS.key.ior}
-            chromaticAberration={GLASS.key.chromaticAberration}
-            anisotropicBlur={GLASS.key.anisotropicBlur}
-            distortion={GLASS.key.distortion}
-            distortionScale={GLASS.key.distortionScale}
-            temporalDistortion={GLASS.key.temporalDistortion}
-            color={tintStrength(GLASS.key.color)}
-          />
-        </RoundedBox>
-        {legend && (
-          <mesh position={[0, 0, depth / 2 + 0.6]}>
-            <planeGeometry args={[w, h]} />
-            <meshBasicMaterial
-              map={legend}
-              transparent
-              depthWrite={false}
-              toneMapped={false}
+      <group ref={assemblyRef}>
+        <group ref={group}>
+          <RoundedBox
+            args={[w, h, depth]}
+            radius={radius}
+            smoothness={3}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              pressedRef.current = true;
+              playKeySound(
+                getSoundCategory(cfg.id),
+                !!cfg.muted,
+                KEY_PAN[cfg.id] ?? 0,
+              );
+            }}
+            onPointerUp={() => {
+              pressedRef.current = false;
+            }}
+            onPointerLeave={() => {
+              pressedRef.current = false;
+            }}
+          >
+            <MeshTransmissionMaterial
+              buffer={buffer}
+              transmission={1}
+              thickness={depth * GLASS.key.thicknessFactor}
+              roughness={GLASS.key.roughness}
+              ior={GLASS.key.ior}
+              chromaticAberration={GLASS.key.chromaticAberration}
+              anisotropicBlur={GLASS.key.anisotropicBlur}
+              distortion={GLASS.key.distortion}
+              distortionScale={GLASS.key.distortionScale}
+              temporalDistortion={GLASS.key.temporalDistortion}
+              color={tintStrength(GLASS.key.color)}
             />
-          </mesh>
-        )}
+          </RoundedBox>
+          {legend && (
+            <mesh position={[0, 0, depth / 2 + 0.6]}>
+              <planeGeometry args={[w, h]} />
+              <meshBasicMaterial
+                map={legend}
+                transparent
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+          )}
+        </group>
       </group>
+    </group>
+  );
+}
+
+function AnimatedBasePlate({
+  width,
+  height,
+  depth,
+  buffer,
+  assemblyDelay,
+  riseDistance,
+}: {
+  width: number;
+  height: number;
+  depth: number;
+  buffer: THREE.Texture;
+  assemblyDelay: number;
+  riseDistance: number;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    const g = groupRef.current;
+    if (!g) return;
+    const elapsed = state.clock.elapsedTime * 1000 - assemblyDelay;
+    if (elapsed >= ASSEMBLY.baseDuration) {
+      g.position.y = 0;
+      g.visible = true;
+    } else {
+      g.visible = elapsed > -16;
+      const t = Math.max(elapsed / ASSEMBLY.baseDuration, 0);
+      const progress = assemblySpring(t);
+      g.position.y = -(1 - progress) * riseDistance;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      <RoundedBox
+        args={[width * 1.03, height * 1.06, depth * 0.5]}
+        radius={depth * 0.3}
+        smoothness={3}
+        position={[0, 0, -depth * 0.6]}
+      >
+        <MeshTransmissionMaterial
+          buffer={buffer}
+          transmission={1}
+          thickness={depth * GLASS.basePlate.thicknessFactor}
+          roughness={GLASS.basePlate.roughness}
+          ior={GLASS.basePlate.ior}
+          chromaticAberration={GLASS.basePlate.chromaticAberration}
+          anisotropicBlur={GLASS.basePlate.anisotropicBlur}
+          color={tintStrength(GLASS.basePlate.color)}
+        />
+      </RoundedBox>
     </group>
   );
 }
@@ -211,11 +301,13 @@ function PillSlab({
   initialRect,
   viewportSize,
   buffer,
+  cursorTilt,
 }: {
   textPillEl?: HTMLElement | null;
   initialRect: DOMRect;
   viewportSize: { width: number; height: number };
   buffer: THREE.Texture;
+  cursorTilt?: { current: { x: number; y: number } };
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -228,6 +320,11 @@ function PillSlab({
     mesh.position.z = -6;
     mesh.scale.x = r.width / initialRect.width;
     mesh.scale.y = r.height / initialRect.height;
+    if (cursorTilt) {
+      const f = GLASS.cursorTilt.slabFactor;
+      mesh.rotation.x = cursorTilt.current.x * f;
+      mesh.rotation.y = cursorTilt.current.y * f;
+    }
   });
 
   return (
@@ -264,11 +361,13 @@ function LinkSlab({
   initialRect,
   viewportSize,
   buffer,
+  cursorTilt,
 }: {
   el: HTMLElement;
   initialRect: DOMRect;
   viewportSize: { width: number; height: number };
   buffer: THREE.Texture;
+  cursorTilt?: { current: { x: number; y: number } };
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -281,6 +380,11 @@ function LinkSlab({
     mesh.position.z = -6;
     mesh.scale.x = r.width / initialRect.width;
     mesh.scale.y = r.height / initialRect.height;
+    if (cursorTilt) {
+      const f = GLASS.cursorTilt.slabFactor;
+      mesh.rotation.x = cursorTilt.current.x * f;
+      mesh.rotation.y = cursorTilt.current.y * f;
+    }
   });
 
   return (
@@ -318,6 +422,7 @@ function GlassScene({
   textPillEl,
   linkEls,
   linkRects,
+  holderRef,
   onController,
 }: {
   rect: DOMRect | null;
@@ -325,6 +430,7 @@ function GlassScene({
   textPillEl?: HTMLElement | null;
   linkEls?: (HTMLElement | null)[];
   linkRects?: (DOMRect | null)[];
+  holderRef: React.RefObject<HTMLDivElement | null>;
   onController?: (controller: KeyboardController) => void;
 }) {
   const { size, gl, camera } = useThree();
@@ -401,6 +507,76 @@ function GlassScene({
     };
   }, [rect, size.width, size.height]);
 
+  const assemblyDelays = useMemo(() => {
+    if (!ASSEMBLY.enabled || !board) return null;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
+    const baseDelay = ASSEMBLY.initialDelay;
+    const keyStart = ASSEMBLY.initialDelay + ASSEMBLY.baseDuration * ASSEMBLY.keyStartOffset;
+    const maxDist = Math.sqrt((board.w / 2) ** 2 + (board.h / 2) ** 2) || 1;
+    const keyDelays = board.keys.map(({ x, y }) => {
+      const dist = Math.sqrt(x * x + y * y);
+      const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+      const rand = s - Math.floor(s);
+      return keyStart + ((dist / maxDist) * 0.7 + rand * 0.3) * ASSEMBLY.keyStagger;
+    });
+    return { baseDelay, keyDelays };
+  }, [board]);
+
+  const dropDist = assemblyDelays ? size.height * ASSEMBLY.keyDropHeight : 0;
+  const riseDist = assemblyDelays ? size.height * ASSEMBLY.baseRiseHeight : 0;
+
+  const assemblyEndMs = useMemo(() => {
+    if (!assemblyDelays) return 0;
+    return Math.max(...assemblyDelays.keyDelays) + ASSEMBLY.keyDuration;
+  }, [assemblyDelays]);
+
+  const boardGroupRef = useRef<THREE.Group>(null);
+  const cursorTilt = useRef({ x: 0, y: 0 });
+
+  useFrame((state, dt) => {
+    const g = boardGroupRef.current;
+    if (!g) return;
+
+    const el = holderRef.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      g.position.x = r.x + r.width / 2 - size.width / 2;
+      g.position.y = size.height / 2 - (r.y + r.height / 2);
+    }
+
+    // Smooth cursor-tracking tilt
+    const lerpFactor = 1 - Math.pow(1 - GLASS.cursorTilt.smoothing, dt * 60);
+    const targetX = state.pointer.y * GLASS.cursorTilt.strength;
+    const targetY = -state.pointer.x * GLASS.cursorTilt.strength;
+    cursorTilt.current.x += (targetX - cursorTilt.current.x) * lerpFactor;
+    cursorTilt.current.y += (targetY - cursorTilt.current.y) * lerpFactor;
+
+    // Compute base rotation
+    let baseRotX = GLASS.tiltX;
+    let baseRotY = 0;
+
+    if (assemblyDelays) {
+      const t = state.clock.elapsedTime * 1000;
+      if (t < assemblyEndMs) {
+        const progress = Math.min(t / assemblyEndMs, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        baseRotX = ASSEMBLY.startTiltX + (GLASS.tiltX - ASSEMBLY.startTiltX) * eased;
+        baseRotY = ASSEMBLY.startRotateY * (1 - eased);
+      } else {
+        const showcaseElapsed = t - assemblyEndMs;
+        if (showcaseElapsed < ASSEMBLY.showcaseDuration) {
+          const p = showcaseElapsed / ASSEMBLY.showcaseDuration;
+          baseRotY = Math.sin(p * Math.PI) * ASSEMBLY.showcaseAngle;
+        } else {
+          baseRotY = Math.sin(state.clock.elapsedTime * ASSEMBLY.idleSpeed * Math.PI * 2) * ASSEMBLY.idleAmplitude;
+        }
+      }
+    }
+
+    g.rotation.x = baseRotX + cursorTilt.current.x;
+    g.rotation.y = baseRotY + cursorTilt.current.y;
+  });
+
   return (
     <>
       {bgTexture &&
@@ -424,6 +600,7 @@ function GlassScene({
           initialRect={pillRect}
           viewportSize={size}
           buffer={buffer.texture}
+          cursorTilt={cursorTilt}
         />
       )}
       {linkEls?.map((el, i) => {
@@ -436,6 +613,7 @@ function GlassScene({
             initialRect={r}
             viewportSize={size}
             buffer={buffer.texture}
+            cursorTilt={cursorTilt}
           />
         );
       })}
@@ -445,32 +623,44 @@ function GlassScene({
         <Environment preset="city" environmentIntensity={GLASS.envIntensity} />
       </Suspense>
       {board && (
-        <group position={[board.cx, board.cy, 0]} rotation={[GLASS.tiltX, 0, 0]}>
-          {/* Frosted glass base plate behind the keys. */}
-          <RoundedBox
-            args={[board.w * 1.03, board.h * 1.06, board.depth * 0.5]}
-            radius={board.depth * 0.3}
-            smoothness={3}
-            position={[0, 0, -board.depth * 0.6]}
-          >
-            <MeshTransmissionMaterial
+        <group ref={boardGroupRef} position={[board.cx, board.cy, 0]}>
+          {assemblyDelays ? (
+            <AnimatedBasePlate
+              width={board.w}
+              height={board.h}
+              depth={board.depth}
               buffer={buffer.texture}
-              transmission={1}
-              thickness={board.depth * GLASS.basePlate.thicknessFactor}
-              roughness={GLASS.basePlate.roughness}
-              ior={GLASS.basePlate.ior}
-              chromaticAberration={GLASS.basePlate.chromaticAberration}
-              anisotropicBlur={GLASS.basePlate.anisotropicBlur}
-              color={tintStrength(GLASS.basePlate.color)}
+              assemblyDelay={assemblyDelays.baseDelay}
+              riseDistance={riseDist}
             />
-          </RoundedBox>
-          {board.keys.map((layout) => (
+          ) : (
+            <RoundedBox
+              args={[board.w * 1.03, board.h * 1.06, board.depth * 0.5]}
+              radius={board.depth * 0.3}
+              smoothness={3}
+              position={[0, 0, -board.depth * 0.6]}
+            >
+              <MeshTransmissionMaterial
+                buffer={buffer.texture}
+                transmission={1}
+                thickness={board.depth * GLASS.basePlate.thicknessFactor}
+                roughness={GLASS.basePlate.roughness}
+                ior={GLASS.basePlate.ior}
+                chromaticAberration={GLASS.basePlate.chromaticAberration}
+                anisotropicBlur={GLASS.basePlate.anisotropicBlur}
+                color={tintStrength(GLASS.basePlate.color)}
+              />
+            </RoundedBox>
+          )}
+          {board.keys.map((layout, i) => (
             <GlassKey
               key={layout.cfg.id}
               layout={layout}
               depth={board.depth}
               buffer={buffer.texture}
               register={register}
+              assemblyDelay={assemblyDelays?.keyDelays[i]}
+              dropDistance={dropDist}
             />
           ))}
         </group>
@@ -505,14 +695,12 @@ export default function GlassKeyboard({
     };
     update();
     window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, { passive: true });
     const observer = new ResizeObserver(update);
     observer.observe(holder);
     if (textPillEl) observer.observe(textPillEl);
     linkEls?.forEach((el) => { if (el) observer.observe(el); });
     return () => {
       window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update);
       observer.disconnect();
     };
   }, [textPillEl, linkEls]);
@@ -540,6 +728,7 @@ export default function GlassKeyboard({
             textPillEl={textPillEl}
             linkEls={linkEls}
             linkRects={linkRects}
+            holderRef={holderRef}
             onController={onController}
           />
         </Canvas>

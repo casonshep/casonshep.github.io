@@ -323,10 +323,89 @@ export const GLASS = {
     soft: "rgba(255,255,255,0.5)",
   },
 
+  /** Cursor-tracking tilt applied to the keyboard and glass slabs. */
+  cursorTilt: {
+    /** Max tilt angle for the keyboard, radians. [0 … 0.2]
+     *  0.06 = subtle, 0.1 = noticeable, 0.15 = dramatic. */
+    strength: 0.12,
+    /** Smoothing factor per frame at 60fps. [0.02 … 0.2]
+     *  Lower = smoother/laggier, higher = more responsive. */
+    smoothing: 0.08,
+    /** Tilt multiplier for text/link slabs relative to keyboard. [0 … 1] */
+    slabFactor: 0.5,
+  },
+
   /** Strength of the environment (city HDR) reflections on the glass.
    *  [0 … 1.5] — 0 = no specular streaks at all (glass goes invisible over
    *  dark footage), 0.3-0.7 = believable sheen, 1+ = showroom lighting. */
   envIntensity: .5,
+} as const;
+
+// ---------------------------------------------------------------------------
+// Assembly animation (keyboard builds itself on page load)
+// ---------------------------------------------------------------------------
+export const ASSEMBLY = {
+  /** Master switch. Set to false to show the keyboard fully assembled. */
+  enabled: true,
+
+  /** Delay before any animation begins, ms. [0 … 800] */
+  initialDelay: 500,
+
+  /** Duration of the base plate rising animation, ms. [400 … 2000] */
+  baseDuration: 1200,
+
+  /** How far below (as fraction of viewport height) the base starts. [0.3 … 1.5] */
+  baseRiseHeight: 0.5,
+
+  /** Duration of each key's drop animation, ms. [300 … 1500] */
+  keyDuration: 1000,
+
+  /** How far above (as fraction of viewport height) keys start. [0.3 … 1.5] */
+  keyDropHeight: 0.6,
+
+  /** Max stagger spread across all keys, ms. [100 … 1200]
+   *  Keys near the center land first; this is the delay from first to last.
+   *  Higher = fewer keys animating at once (smoother on GPU). */
+  keyStagger: 700,
+
+  /** Fraction of baseDuration at which keys start falling. [0 … 1]
+   *  0.5 = keys start falling when the base is halfway up. */
+  keyStartOffset: 0.5,
+
+  /** Spring damping — higher = faster settle. [3 … 12] */
+  damping: 5,
+
+  /** Spring oscillation frequency. [3 … 12]
+   *  Lower = broader, slower bounces; higher = tighter bounces. */
+  frequency: 4,
+
+  /** Random rotation range for tumbling keys, degrees. [0 … 45]
+   *  0 = keys fall straight, 15 = subtle wobble, 45 = dramatic tumble. */
+  tumbleRange: 15,
+
+  // --- Board rotation during & after assembly ---
+
+  /** Starting X tilt during assembly, radians. [-0.8 … 0]
+   *  More negative = more tilted back (showing the top face).
+   *  Eases to GLASS.tiltX as keys land. */
+  startTiltX: -0.55,
+
+  /** Starting Y rotation during assembly, radians. [-0.5 … 0.5]
+   *  Nonzero = keyboard starts angled from the side. Eases to 0. */
+  startRotateY: 0.25,
+
+  /** Duration of the showcase spin after assembly completes, ms. [1000 … 4000] */
+  showcaseDuration: 2500,
+
+  /** How far the showcase spin rotates on Y, radians. [0.1 … 0.6] */
+  showcaseAngle: 0.2,
+
+  /** Continuous idle float amplitude after settling, radians. [0 … 0.01]
+   *  0 = perfectly still, 0.004 = barely perceptible, 0.01 = gentle sway. */
+  idleAmplitude: 0.004,
+
+  /** Idle float speed, oscillations per second. [0.1 … 1] */
+  idleSpeed: 0.3,
 } as const;
 
 // ---------------------------------------------------------------------------
