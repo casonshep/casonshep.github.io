@@ -26,22 +26,11 @@ jobs:
           cache: npm
 
       - run: npm install
+      - run: npm install lightningcss-linux-x64-gnu
 
-      - name: Build
-        id: build
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          npx next build 2>&1 | tee build.log
+      - run: npx next build
         env:
           NEXT_TELEMETRY_DISABLED: 1
-
-      - name: Report build error
-        if: steps.build.outcome == 'failure'
-        run: |
-          err=$(tail -30 build.log | tr '\n' ' /// ')
-          echo "::error::BUILD OUTPUT: $err"
-          exit 1
 
       - uses: actions/upload-pages-artifact@v3
         with:
