@@ -2,11 +2,15 @@
 // visualConfig.ts — every knob for the landing page's look, in one place.
 //
 // Edit and save; the dev server hot-reloads.
-// Colors: use "rgba(r,g,b,a)" (or hex) everywhere. For the glass and
-// terminal tints the alpha channel means TINT STRENGTH — 1 = full color,
-// 0 = no tint (neutral) — since those materials have no real transparency.
+// Colors: use "rgba(r,g,b,a)" (or hex) everywhere. For the glass tints the
+// alpha channel means TINT STRENGTH — 1 = full color, 0 = no tint (neutral)
+// — since those materials have no real transparency.
 // Each knob lists a practical range as [min … max] — values outside won't
 // break anything, they just stop looking better.
+//
+// Sections: INTRO (typing), BACKDROP (ascii video + clip morphs), GLASS
+// (3D keyboard materials/lights), ASSEMBLY (scroll-scrubbed build),
+// GLASS_SURFACE (unused alternate DOM-glass keyboard variant).
 // (The charcoal DOM keyboard's colors live in Keyboard.tsx under
 // KEYCAP_THEMES / CASE_THEMES if you want to restyle that variant too.)
 // ============================================================================
@@ -99,23 +103,85 @@ export const BACKDROP = {
    *  film, 30 smooth but costs more CPU. */
   targetFps: 20,
 
-  /** How many viewport-heights of the page the video spans. [1 … 3]
-   *  1 = video ends with the landing section, 1.5-2 = scrolling reveals
-   *  more of the (portrait) clip's frame before the terminal fades in.
-   *  The extra length adds scroll runway between the two sections. */
+  /** How many viewport-heights the video's frame spans. [1 … 3]
+   *  1 fills the viewport exactly. Only matters beyond 1 when scrollPan > 0
+   *  (the extra length is what scrolling pans through). */
   videoScreens: 1,
+
+  /** How much the video pans with page scroll. [0 … 1]
+   *  0 = static (fixed in place), 1 = scrolls 1:1 with the page,
+   *  in between = parallax. With > 0, raise videoScreens to
+   *  ≥ 1 + ASSEMBLY.scrollRange so the pan never runs out of frame. */
+  scrollPan: 0,
+
+  /** Vertical drop of the video, as a fraction of viewport height.
+   *  [-1 … 1] — 0 = top-aligned with the viewport, 0.1 = nudged down 10%,
+   *  negative = raised. Cells outside the frame render black. */
+  videoOffsetY: 0,
+
+  /** Background clips, cycled with an ascii crossfade morph. Drop files
+   *  into /public/media and list them here (e.g. "/media/clip2.mp4").
+   *  A single entry just loops — no cycling.
+   *  The -bounce files have the boomerang (forward + reversed) baked in —
+   *  regenerate one for a new clip with:
+   *    ./scripts/make-boomerang.sh public/media/<clip>.mp4 */
+  videoSources: [
+    "/media/cow-bounce.mp4",
+    "/media/harley-bounce.mp4",
+    "/media/slayter-bounce.mp4",
+  ] as readonly string[],
+
+  /** Seconds each clip plays before morphing to the next. [5 … 120] */
+  videoCycleSeconds: 10,
+
+  /** Duration of the morph crossfade between clips, seconds. [0.5 … 5] */
+  videoMorphSeconds: 1.5,
+
+  /** Peak blur laid over the ascii canvas mid-morph, px. [0 … 24]
+   *  Ramps up and back down across the morph. 0 = no blur: the clips only
+   *  crossfade inside the character grid (pure ascii glyph morph). */
+  videoMorphBlurPx: 20,
+
+  /** Cursor ripple (after reactbits' RippleDistortion): pointer movement
+   *  stamps soft waves that grow and fade into a displacement field; a
+   *  shader smears the ascii "water" along it with swirl + chromatic
+   *  dispersion, and where the water is displaced hard the raw HD video
+   *  shows through. Runs at full frame rate on the GPU; sits over the
+   *  ascii, under all the glass. */
+  cursorRipple: {
+    /** Max water displacement, px. [0 … 200] 0 disables. */
+    strength: 90,
+    /** Diameter of each stamped wave, px. [60 … 400] */
+    brushSize: 150,
+    /** Ring crests inside each wave. [1 … 8] */
+    rings: 4,
+    /** Swirl: how much the push direction rotates with intensity. [0 … 2] */
+    swirl: 1,
+    /** How far each wave expands from its stamped size. [1 … 12] */
+    spread: 7.75,
+    /** Seconds a wave takes to dissolve. [0.5 … 8] */
+    fade: 3,
+    /** Min cursor travel between wave stamps, px. [4 … 60]
+     *  Smaller = denser, soupier trail (more waves alive at once). */
+    spacing: 15,
+    /** Chromatic dispersion: RGB split along the push. [0 … 1] */
+    dispersion: 0.5,
+    /** How strongly hard-displaced water opens to the HD video. [0 … 1]
+     *  0 = never reveal (pure ripple), 1 = full clean video in the wake. */
+    reveal: 0.8,
+  },
 
   /** Brightness lift applied to the (dark) footage before mapping to glyphs.
    *  liftGain [0.8 … 2.5]: >1 brightens everything; 2+ blows out highlights.
    *  liftGamma [0.5 … 1.2]: <1 lifts shadows (reveals dark detail),
    *  1 = untouched, >1 crushes shadows for a high-contrast look. */
-  liftGain: 1,
-  liftGamma: .8,
+  liftGain: 1.8,
+  liftGamma: .7,
 
   /** ASCII: font size in px (cell size follows from it).
    *  [8 … 24] — 8-10 is fine detail (almost looks like an image, more CPU),
    *  14-18 clearly reads as text, 20+ is chunky abstract blocks. */
-  asciiFontPx: 20,
+  asciiFontPx: 10,
 
   /** ASCII: characters from darkest to brightest. Any length ≥ 2.
    *  More characters = smoother tonal gradient; denser glyphs (#, @, $)
@@ -135,14 +201,21 @@ export const BACKDROP = {
    *  0.5 is a good middle ground for portrait video on landscape screens. */
   videoFit: 1,
 
-  /** Fill character color for side gaps when videoFit < 1.
-   *  Bright white maps to "$" in the ramp. Dim it to soften the fill. */
-  videoFillColor: "#ffffff",
+  /** Fill color for the side gaps when videoFit < 1.
+   *  "auto" = the most common color along the current frame's edges, so the
+   *  fill blends with the footage and follows it as clips morph. Or any
+   *  fixed CSS color ("#ffffff" = bright $ fill, "#000" = empty). */
+  videoFillColor: "auto" as string,
 
   /** ASCII: canvas filter applied when tinting glyphs with video color.
    *  brightness [1 … 2.5], saturate [1 … 2.5] — push brightness when the
    *  footage is dark, saturation to exaggerate the stage-light colors. */
-  asciiTintFilter: "brightness(.8) saturate(1.7)",
+  asciiTintFilter: "brightness(1.7) saturate(1.9)",
+
+  /** CSS background of the fixed vignette layer over the backdrop, keeping
+   *  the hero text readable. Any CSS gradient; "none" disables it. */
+  vignette:
+    "radial-gradient(80% 70% at 50% 55%, rgba(0,0,0,0.38), rgba(0,0,0,0.14) 60%, rgba(0,0,0,0) 100%)",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -192,7 +265,7 @@ export const GLASS = {
      *  [1 … 2.4] — 1 = no bending at all (invisible glass), 1.2 = subtle,
      *  1.5 = realistic glass, 2 + = dense crystal/diamond magnification.
      *  This is the main "how glassy" knob. */
-    ior: 20,
+    ior: 9,
 
     /** RGB fringe at refracted edges (lens rainbow). [0 … 0.3]
      *  0 = clean, 0.03-0.06 = subtle realism, 0.1-0.2 = stylized prism,
@@ -216,7 +289,7 @@ export const GLASS = {
     /** Animates the distortion over time. [0 … 0.5] — 0 = frozen,
      *  0.05-0.1 = barely-alive shimmer, 0.2-0.4 = heat-haze wobble,
      *  0.5 = actively liquid. */
-    temporalDistortion: .3,
+    temporalDistortion: .1,
 
     /** Tint multiplied over everything seen through the glass — can only
      *  darken/tint, never brighten. Lighter colors = clearer glass;
@@ -240,6 +313,20 @@ export const GLASS = {
     color: "rgba(143, 161, 221, 1)",
     /** Refraction thickness as a fraction of key depth. [0.3 … 2] */
     thicknessFactor: 0.8,
+
+    // --- Geometry (relative to the key grid) ---
+
+    /** Plate width as a fraction of the key grid's width. [1 … 1.2] */
+    widthFactor: 1.03,
+    /** Plate height as a fraction of the key grid's height. [1 … 1.2] */
+    heightFactor: 1.06,
+    /** Plate thickness as a fraction of key depth. [0.2 … 1.5] */
+    depthScale: 0.5,
+    /** Plate corner radius as a fraction of key depth. [0.1 … 0.5] */
+    radiusFactor: 0.3,
+    /** How far behind the keys the plate sits, as a fraction of key depth.
+     *  [0.4 … 1.5] — larger = a visible air gap under floating keys. */
+    zOffsetFactor: 0.6,
   },
 
   /** Glass slab behind the typed sentence. Same knobs and ranges as `key`. */
@@ -248,7 +335,7 @@ export const GLASS = {
     roughness: .05,
 
     /** Index of refraction. [1 … 2.4] */
-    ior: 10,
+    ior: 9,
 
     /** RGB fringe at refracted edges. [0 … 0.3] */
     chromaticAberration: 0.1,
@@ -269,7 +356,7 @@ export const GLASS = {
     color: "rgba(89, 91, 226, 0.86)",
 
     /** Refraction (optical) thickness, px. [4 … 40] */
-    thickness: 20,
+    thickness: 10,
 
     /** Physical depth of the slab geometry, px. [6 … 30] */
     depth: 10,
@@ -285,7 +372,7 @@ export const GLASS = {
     roughness: 0,
 
     /** Index of refraction. [1 … 2.4] */
-    ior: 5,
+    ior: 0,
 
     /** RGB fringe at refracted edges. [0 … 0.3] */
     chromaticAberration: 0.34,
@@ -315,12 +402,20 @@ export const GLASS = {
     radius: 15,
   },
 
-  /** Key legend text colors (drawn onto the keycaps).
+  /** Key legends (labels drawn onto the keycaps).
    *  ink = main labels, soft = the small shift-symbols. Adjust the alpha
    *  (last rgba number) to fade legends into the glass. */
   legend: {
     ink: "rgba(255,255,255,0.92)",
     soft: "rgba(255,255,255,0.5)",
+    /** Main label size as a fraction of key height. [0.25 … 0.6] */
+    mainScale: 0.42,
+    /** Size of wide-key labels (Shift, Enter, …), fraction of key height.
+     *  [0.2 … 0.45] */
+    smallScale: 0.3,
+    /** Size of the little shift-symbols (!, @, …), fraction of key height.
+     *  [0.15 … 0.35] */
+    shiftScale: 0.22,
   },
 
   /** Cursor-tracking tilt applied to the keyboard and glass slabs. */
@@ -335,53 +430,76 @@ export const GLASS = {
     slabFactor: 0.5,
   },
 
-  /** Strength of the environment (city HDR) reflections on the glass.
+  /** Strength of the environment HDR reflections on the glass.
    *  [0 … 1.5] — 0 = no specular streaks at all (glass goes invisible over
    *  dark footage), 0.3-0.7 = believable sheen, 1+ = showroom lighting. */
-  envIntensity: .5,
+  envIntensity: .1,
+
+  /** Which HDR environment provides those reflections. The streaks' shape
+   *  and color come from this. */
+  envPreset: "forest" as
+    | "city" | "sunset" | "dawn" | "night" | "warehouse"
+    | "forest" | "apartment" | "studio" | "lobby" | "park",
+
+  /** Scene lights. */
+  lights: {
+    /** Ambient fill intensity. [0 … 2] */
+    ambient: 0.8,
+    /** Key light intensity. [0 … 3] — drives the bright top-edge specular. */
+    directional: 1.0,
+    /** Key light position [x, y, z] in px-ish scene units. Move it to move
+     *  the highlights (e.g. negative x = light from the left). */
+    directionalPosition: [200, 400, 600] as readonly [number, number, number],
+  },
+
+  /** Render resolution cap as a devicePixelRatio clamp. [1 … 2]
+   *  Higher = crisper glass on hi-dpi screens, at real GPU cost. */
+  maxDpr: 1.6,
 } as const;
 
 // ---------------------------------------------------------------------------
-// Assembly animation (keyboard builds itself on page load)
+// Assembly animation, scrubbed by scroll: the keyboard builds itself as you
+// scroll down and un-builds as you scroll back up. The "ms" durations below
+// are virtual timeline units — the scroll range maps linearly onto the whole
+// timeline, so only their ratios to each other matter.
 // ---------------------------------------------------------------------------
 export const ASSEMBLY = {
   /** Master switch. Set to false to show the keyboard fully assembled. */
   enabled: true,
 
-  /** Delay before any animation begins, ms. [0 … 800] */
-  initialDelay: 500,
+  /** Scroll distance that plays the full assembly, as a fraction of the
+   *  viewport height. [0.5 … 3] Higher = a slower, more deliberate scrub. */
+  scrollRange: 2,
 
-  /** Duration of the base plate rising animation, ms. [400 … 2000] */
+  /** Duration of the base plate rising animation, timeline ms. [400 … 2000] */
   baseDuration: 1200,
 
   /** How far below (as fraction of viewport height) the base starts. [0.3 … 1.5] */
-  baseRiseHeight: 0.5,
+  baseRiseHeight: 0.9,
 
-  /** Duration of each key's drop animation, ms. [300 … 1500] */
+  /** Duration of each key's drop animation, timeline ms. [300 … 1500] */
   keyDuration: 1000,
 
   /** How far above (as fraction of viewport height) keys start. [0.3 … 1.5] */
   keyDropHeight: 0.6,
 
-  /** Max stagger spread across all keys, ms. [100 … 1200]
-   *  Keys near the center land first; this is the delay from first to last.
-   *  Higher = fewer keys animating at once (smoother on GPU). */
-  keyStagger: 700,
+  /** Max stagger spread across all keys, timeline ms. [100 … 1200]
+   *  Each key gets a random delay in this window, so the order they land
+   *  in is shuffled. Higher = fewer keys animating at once. */
+  keyStagger: 900,
 
   /** Fraction of baseDuration at which keys start falling. [0 … 1]
    *  0.5 = keys start falling when the base is halfway up. */
-  keyStartOffset: 0.5,
+  keyStartOffset: 1,
 
-  /** Spring damping — higher = faster settle. [3 … 12] */
-  damping: 5,
-
-  /** Spring oscillation frequency. [3 … 12]
-   *  Lower = broader, slower bounces; higher = tighter bounces. */
-  frequency: 4,
+  /** Ease-out exponent for every assembly motion (pieces and board tilt).
+   *  [1 … 5] — 1 = linear (mechanical), 2 = gentle, 3 = classic cubic,
+   *  4-5 = pieces rush in and brake hard at the end. */
+  easePower: 3,
 
   /** Random rotation range for tumbling keys, degrees. [0 … 45]
    *  0 = keys fall straight, 15 = subtle wobble, 45 = dramatic tumble. */
-  tumbleRange: 15,
+  tumbleRange: 30,
 
   // --- Board rotation during & after assembly ---
 
@@ -394,72 +512,18 @@ export const ASSEMBLY = {
    *  Nonzero = keyboard starts angled from the side. Eases to 0. */
   startRotateY: 0.25,
 
-  /** Duration of the showcase spin after assembly completes, ms. [1000 … 4000] */
-  showcaseDuration: 2500,
-
-  /** How far the showcase spin rotates on Y, radians. [0.1 … 0.6] */
-  showcaseAngle: 0.2,
-
   /** Continuous idle float amplitude after settling, radians. [0 … 0.01]
    *  0 = perfectly still, 0.004 = barely perceptible, 0.01 = gentle sway. */
-  idleAmplitude: 0.004,
+  idleAmplitude: 0.01,
 
   /** Idle float speed, oscillations per second. [0.1 … 1] */
   idleSpeed: 0.3,
 } as const;
 
 // ---------------------------------------------------------------------------
-// Second section background (static image, ASCII-ified with the same
-// font/ramp as the video backdrop so the two blend seamlessly).
-// ---------------------------------------------------------------------------
-export const TERMINAL = {
-  /** ASCII font size for this section in px. [8 … 24]
-   *  Smaller = finer detail (more characters), larger = chunkier.
-   *  Set to 0 or omit to inherit BACKDROP's value. */
-  asciiFontPx: 15,
-
-  /** Brightness lift for the section image before ASCII conversion.
-   *  [0.8 … 2.5] — >1 brightens, useful for dark photos. */
-  liftGain: 1.7,
-
-  /** Gamma for the section image. [0.5 … 1.2]
-   *  <1 lifts shadows, 1 = untouched, >1 crushes shadows. */
-  liftGamma: 1.2,
-
-  /** ASCII ramp override for this section (leave empty to use BACKDROP's).
-   *  Same format: characters from darkest to brightest. */
-  asciiRamp: "`·.,:!-~=+>?$&%@#",
-
-  /** Canvas filter applied when tinting glyphs for this section.
-   *  brightness [1 … 2.5], saturate [1 … 2.5]. */
-  asciiTintFilter: "brightness(1.5) saturate(3)",
-
-  /** How many character rows the video → section transition takes.
-   *  [0 … 30] — 0 = hard cut at the section boundary, 5-14 = gradual
-   *  crossfade (the image bleeds up into the bottom of the landing
-   *  section), 20+ = very slow dissolve. */
-  blendRows: 10,
-
-  /** Image crop: fraction of the image to trim from the top. [0 … 0.4] */
-  imageCropTop: .4,
-
-  /** Image crop: fraction of the image to trim from the bottom. [0 … 0.4] */
-  imageCropBottom: .2,
-
-  /** Image crop: fraction of the image to trim from the left. [0 … 0.4] */
-  imageCropLeft: 0,
-
-  /** Image crop: fraction of the image to trim from the right. [0 … 0.4] */
-  imageCropRight: 0,
-
-  /** Image fit: 0 = contain (full image, black bars), 1 = cover (fills
-   *  section, edges cropped). [0 … 1] */
-  imageFit: 1,
-} as const;
-
-// ---------------------------------------------------------------------------
 // "Liquid" DOM glass (SVG displacement filter, after reactbits' GlassSurface).
-// Used by the alternate keyboard implementation (toggle bottom-left).
+// Only used by the alternate DOM keyboard (LiquidGlassKeyboard.tsx), which is
+// currently not mounted anywhere — safe to ignore unless you bring it back.
 // Chromium-only for the full effect; Safari/Firefox get a frosted fallback.
 // ---------------------------------------------------------------------------
 export const GLASS_SURFACE = {

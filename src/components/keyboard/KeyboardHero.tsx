@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { type KeyboardController } from "./Keyboard";
 import GlassKeyboard from "./GlassKeyboard";
 import VideoBackdrop from "./VideoBackdrop";
-import TerminalSection from "./TerminalSection";
-import { BACKDROP, INTRO } from "./visualConfig";
+import { ASSEMBLY, BACKDROP, INTRO } from "./visualConfig";
 import { links } from "@/lib/links";
 
 const SENTENCE = INTRO.sentence;
@@ -189,7 +188,9 @@ export default function KeyboardHero() {
 
   return (
     <div
-      className="relative w-full overflow-x-hidden bg-black"
+      // overflow-x-clip (not -hidden): hidden would create a scroll
+      // container and break the sticky hero below.
+      className="relative w-full overflow-x-clip bg-black"
       style={{
         fontFamily:
           "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -201,14 +202,21 @@ export default function KeyboardHero() {
       {/* Soft vignette so the content stays readable over the video. */}
       <div
         className="pointer-events-none fixed inset-0"
-        style={{
-          background:
-            "radial-gradient(80% 70% at 50% 55%, rgba(0,0,0,0.38), rgba(0,0,0,0.14) 60%, rgba(0,0,0,0) 100%)",
-        }}
+        style={{ background: BACKDROP.vignette }}
       />
 
-      {/* Landing section: the keyboard scene fills the first viewport. */}
-      <section className="relative flex h-dvh w-full flex-col">
+      {/* Landing section: pinned while the visitor scrolls through the
+          assembly runway, so the keyboard builds/un-builds in place as
+          they scroll (see ASSEMBLY.scrollRange). */}
+      <div
+        className="pointer-events-none"
+        style={
+          ASSEMBLY.enabled
+            ? { height: `calc(${1 + ASSEMBLY.scrollRange} * 100dvh)` }
+            : undefined
+        }
+      >
+      <section className="pointer-events-none sticky top-0 flex h-dvh w-full flex-col">
       <main
         className="relative z-10 flex w-full flex-1 flex-col items-center justify-center"
         style={{
@@ -361,18 +369,7 @@ export default function KeyboardHero() {
         </div>
       </main>
       </section>
-
-      {/* Scroll runway for the extended video span (BACKDROP.videoScreens):
-          more of the clip's portrait frame is revealed here before the
-          terminal section fades in. */}
-      {BACKDROP.videoScreens > 1 && (
-        <div
-          aria-hidden
-          style={{ height: `calc(${BACKDROP.videoScreens - 1} * 100dvh)` }}
-        />
-      )}
-
-      <TerminalSection />
+      </div>
     </div>
   );
 }

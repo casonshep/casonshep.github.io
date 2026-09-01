@@ -67,10 +67,11 @@ function layoutKeys(boardW: number, boardH: number): LayoutKey[] {
   return keys;
 }
 
-function assemblySpring(t: number): number {
+// Ease-out: pieces glide into place without overshooting or bouncing.
+function assemblyEase(t: number): number {
   if (t <= 0) return 0;
   if (t >= 1) return 1;
-  return 1 - Math.exp(-ASSEMBLY.damping * t) * Math.cos(ASSEMBLY.frequency * t);
+  return 1 - Math.pow(1 - t, ASSEMBLY.easePower);
 }
 
 function makeLegendTexture(
@@ -90,7 +91,9 @@ function makeLegendTexture(
     `${weight} ${Math.round(px)}px ui-monospace, Menlo, monospace`;
 
   if (cfg.label) {
-    const px = (cfg.small ? h * 0.3 : h * 0.42) * scale;
+    const px =
+      (cfg.small ? h * GLASS.legend.smallScale : h * GLASS.legend.mainScale) *
+      scale;
     ctx.font = font(px, cfg.small ? 600 : 700);
     ctx.fillStyle = GLASS.legend.ink;
     ctx.textBaseline = "middle";
@@ -103,7 +106,7 @@ function makeLegendTexture(
     }
   }
   if (cfg.shiftLabel) {
-    ctx.font = font(h * 0.22 * scale, 500);
+    ctx.font = font(h * GLASS.legend.shiftScale * scale, 500);
     ctx.fillStyle = GLASS.legend.soft;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
@@ -125,6 +128,7 @@ function GlassKey({
   register,
   assemblyDelay,
   dropDistance,
+  timeline,
 }: {
   layout: LayoutKey;
   depth: number;
@@ -132,6 +136,8 @@ function GlassKey({
   register: (id: string, trigger: GlassTrigger) => () => void;
   assemblyDelay?: number;
   dropDistance?: number;
+  /** Scroll-scrubbed assembly time in virtual ms; see GlassScene. */
+  timeline: React.RefObject<number>;
 }) {
   const { cfg, x, y, w, h } = layout;
   const group = useRef<THREE.Group>(null);
@@ -157,7 +163,7 @@ function GlassKey({
     [cfg.id, register],
   );
 
-  useFrame((state, dt) => {
+  useFrame((_, dt) => {
     const g = group.current;
     if (!g) return;
     const target = pressedRef.current ? -depth * GLASS.pressTravelFactor : 0;
@@ -166,15 +172,15 @@ function GlassKey({
 
     const a = assemblyRef.current;
     if (a && assemblyDelay != null && dropDistance) {
-      const elapsed = state.clock.elapsedTime * 1000 - assemblyDelay;
+      const elapsed = (timeline.current ?? 0) - assemblyDelay;
       if (elapsed >= ASSEMBLY.keyDuration) {
         a.position.y = 0;
         a.rotation.z = 0;
         a.visible = true;
       } else {
-        a.visible = elapsed > -16;
+        a.visible = elapsed > 0;
         const t = Math.max(elapsed / ASSEMBLY.keyDuration, 0);
-        const progress = assemblySpring(t);
+        const progress = assemblyEase(t);
         a.position.y = Math.abs((1 - progress) * dropDistance);
         a.rotation.z = (1 - progress) * tumbleAngle;
       }
@@ -246,40 +252,43 @@ function AnimatedBasePlate({
   height,
   depth,
   buffer,
-  assemblyDelay,
   riseDistance,
+  timeline,
 }: {
   width: number;
   height: number;
   depth: number;
   buffer: THREE.Texture;
-  assemblyDelay: number;
   riseDistance: number;
+  timeline: React.RefObject<number>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
 
-  useFrame((state) => {
+  useFrame(() => {
     const g = groupRef.current;
     if (!g) return;
-    const elapsed = state.clock.elapsedTime * 1000 - assemblyDelay;
+    const elapsed = timeline.current ?? 0;
     if (elapsed >= ASSEMBLY.baseDuration) {
       g.position.y = 0;
-      g.visible = true;
     } else {
-      g.visible = elapsed > -16;
       const t = Math.max(elapsed / ASSEMBLY.baseDuration, 0);
-      const progress = assemblySpring(t);
+      const progress = assemblyEase(t);
       g.position.y = -(1 - progress) * riseDistance;
     }
+    g.visible = true;
   });
 
   return (
     <group ref={groupRef}>
       <RoundedBox
-        args={[width * 1.03, height * 1.06, depth * 0.5]}
-        radius={depth * 0.3}
+        args={[
+          width * GLASS.basePlate.widthFactor,
+          height * GLASS.basePlate.heightFactor,
+          depth * GLASS.basePlate.depthScale,
+        ]}
+        radius={depth * GLASS.basePlate.radiusFactor}
         smoothness={3}
-        position={[0, 0, -depth * 0.6]}
+        position={[0, 0, -depth * GLASS.basePlate.zOffsetFactor]}
       >
         <MeshTransmissionMaterial
           buffer={buffer}
@@ -440,31 +449,53 @@ function GlassScene({
   const bgTextureRef = useRef<THREE.CanvasTexture | null>(null);
 
   // The dithered video canvas doubles as the refraction source.
-  useEffect(() => {
-    const el = document.getElementById(
-      "video-backdrop",
-    ) as HTMLCanvasElement | null;
-    if (!el) return;
+  // Tracks the canvas dimensions the current texture was built around, so a
+  // resize forces a rebuild (fresh GPU storage) instead of trusting in-place
+  // re-uploads — those are where the refraction can get stuck on stale
+  // frames on some drivers.
+  const bgTexSize = useRef({ w: 0, h: 0 });
+
+  const rebuildBgTexture = useCallback((el: HTMLCanvasElement) => {
+    bgTextureRef.current?.dispose();
     const tex = new THREE.CanvasTexture(el);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.minFilter = THREE.LinearFilter;
     tex.generateMipmaps = false;
     bgTextureRef.current = tex;
-    // Syncing an external canvas into React state; runs once on mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    bgTexSize.current = { w: el.width, h: el.height };
     setBgTexture(tex);
+  }, []);
+
+  useEffect(() => {
     return () => {
+      bgTextureRef.current?.dispose();
       bgTextureRef.current = null;
-      tex.dispose();
     };
   }, []);
 
   // Standard R3F render-to-target pass; the renderer and texture are meant
   // to be driven imperatively inside useFrame.
-   
+
   useFrame(() => {
+    // Re-resolve the backdrop canvas every frame: if the element was
+    // replaced (remount) or resized, rebuild the texture so the glass never
+    // keeps refracting a stale frame of an old/detached canvas.
+    const el = document.getElementById(
+      "video-backdrop",
+    ) as HTMLCanvasElement | null;
     const tex = bgTextureRef.current;
-    if (tex) tex.needsUpdate = true;
+    if (el && el.width > 0 && el.height > 0) {
+      if (
+        !tex ||
+        tex.image !== el ||
+        bgTexSize.current.w !== el.width ||
+        bgTexSize.current.h !== el.height
+      ) {
+        rebuildBgTexture(el);
+      } else {
+        tex.needsUpdate = true;
+      }
+    }
     gl.setRenderTarget(buffer);
     gl.render(bgScene, camera);
     gl.setRenderTarget(null);
@@ -510,16 +541,15 @@ function GlassScene({
   const assemblyDelays = useMemo(() => {
     if (!ASSEMBLY.enabled || !board) return null;
     if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
-    const baseDelay = ASSEMBLY.initialDelay;
-    const keyStart = ASSEMBLY.initialDelay + ASSEMBLY.baseDuration * ASSEMBLY.keyStartOffset;
-    const maxDist = Math.sqrt((board.w / 2) ** 2 + (board.h / 2) ** 2) || 1;
+    const keyStart = ASSEMBLY.baseDuration * ASSEMBLY.keyStartOffset;
+    // Fully random landing order: each key hashes its position into a
+    // delay anywhere in the stagger window.
     const keyDelays = board.keys.map(({ x, y }) => {
-      const dist = Math.sqrt(x * x + y * y);
       const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
       const rand = s - Math.floor(s);
-      return keyStart + ((dist / maxDist) * 0.7 + rand * 0.3) * ASSEMBLY.keyStagger;
+      return keyStart + rand * ASSEMBLY.keyStagger;
     });
-    return { baseDelay, keyDelays };
+    return { keyDelays };
   }, [board]);
 
   const dropDist = assemblyDelays ? size.height * ASSEMBLY.keyDropHeight : 0;
@@ -533,7 +563,34 @@ function GlassScene({
   const boardGroupRef = useRef<THREE.Group>(null);
   const cursorTilt = useRef({ x: 0, y: 0 });
 
+  // Assembly timeline in virtual ms, scrubbed by scroll: 0 at the top of
+  // the page, assemblyEndMs once the visitor has scrolled scrollRange
+  // viewport-heights. Scrolling back up reverses the build.
+  const timeline = useRef(0);
+
+  // The canvas is pointer-events:none (so the drift wall behind stays
+  // clickable) and R3F events attach to the keyboard holder instead, so
+  // the cursor tilt tracks the pointer via a window listener.
+  const pointerNorm = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      pointerNorm.current.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointerNorm.current.y = -((e.clientY / window.innerHeight) * 2 - 1);
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
+
   useFrame((state, dt) => {
+    if (assemblyDelays && assemblyEndMs > 0) {
+      const range = window.innerHeight * ASSEMBLY.scrollRange;
+      const scrollProgress =
+        range > 0 ? Math.min(Math.max(window.scrollY / range, 0), 1) : 1;
+      timeline.current = scrollProgress * assemblyEndMs;
+    } else {
+      timeline.current = assemblyEndMs;
+    }
+
     const g = boardGroupRef.current;
     if (!g) return;
 
@@ -546,8 +603,8 @@ function GlassScene({
 
     // Smooth cursor-tracking tilt
     const lerpFactor = 1 - Math.pow(1 - GLASS.cursorTilt.smoothing, dt * 60);
-    const targetX = -state.pointer.y * GLASS.cursorTilt.strength;
-    const targetY = state.pointer.x * GLASS.cursorTilt.strength;
+    const targetX = -pointerNorm.current.y * GLASS.cursorTilt.strength;
+    const targetY = pointerNorm.current.x * GLASS.cursorTilt.strength;
     cursorTilt.current.x += (targetX - cursorTilt.current.x) * lerpFactor;
     cursorTilt.current.y += (targetY - cursorTilt.current.y) * lerpFactor;
 
@@ -555,21 +612,14 @@ function GlassScene({
     let baseRotX = GLASS.tiltX;
     let baseRotY = 0;
 
-    if (assemblyDelays) {
-      const t = state.clock.elapsedTime * 1000;
-      if (t < assemblyEndMs) {
-        const progress = Math.min(t / assemblyEndMs, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
+    if (assemblyDelays && assemblyEndMs > 0) {
+      const progress = Math.min(timeline.current / assemblyEndMs, 1);
+      if (progress < 1) {
+        const eased = assemblyEase(progress);
         baseRotX = ASSEMBLY.startTiltX + (GLASS.tiltX - ASSEMBLY.startTiltX) * eased;
         baseRotY = ASSEMBLY.startRotateY * (1 - eased);
       } else {
-        const showcaseElapsed = t - assemblyEndMs;
-        if (showcaseElapsed < ASSEMBLY.showcaseDuration) {
-          const p = showcaseElapsed / ASSEMBLY.showcaseDuration;
-          baseRotY = Math.sin(p * Math.PI) * ASSEMBLY.showcaseAngle;
-        } else {
-          baseRotY = Math.sin(state.clock.elapsedTime * ASSEMBLY.idleSpeed * Math.PI * 2) * ASSEMBLY.idleAmplitude;
-        }
+        baseRotY = Math.sin(state.clock.elapsedTime * ASSEMBLY.idleSpeed * Math.PI * 2) * ASSEMBLY.idleAmplitude;
       }
     }
 
@@ -590,8 +640,11 @@ function GlassScene({
           </mesh>,
           bgScene,
         )}
-      <ambientLight intensity={0.6} />
-      <directionalLight intensity={1.6} position={[200, 400, 600]} />
+      <ambientLight intensity={GLASS.lights.ambient} />
+      <directionalLight
+        intensity={GLASS.lights.directional}
+        position={[...GLASS.lights.directionalPosition]}
+      />
       {/* Glass slab behind the typed-sentence text (the text itself stays DOM).
           Tracked imperatively every frame so it never desyncs on scroll. */}
       {pillRect && pillRect.width > 0 && (
@@ -620,7 +673,10 @@ function GlassScene({
       {/* Environment reflections keep the glass legible over dark footage.
           Suspense-isolated so the HDR fetch doesn't block the whole scene. */}
       <Suspense fallback={null}>
-        <Environment preset="city" environmentIntensity={GLASS.envIntensity} />
+        <Environment
+          preset={GLASS.envPreset}
+          environmentIntensity={GLASS.envIntensity}
+        />
       </Suspense>
       {board && (
         <group ref={boardGroupRef} position={[board.cx, board.cy, 0]}>
@@ -630,15 +686,19 @@ function GlassScene({
               height={board.h}
               depth={board.depth}
               buffer={buffer.texture}
-              assemblyDelay={assemblyDelays.baseDelay}
               riseDistance={riseDist}
+              timeline={timeline}
             />
           ) : (
             <RoundedBox
-              args={[board.w * 1.03, board.h * 1.06, board.depth * 0.5]}
-              radius={board.depth * 0.3}
+              args={[
+                board.w * GLASS.basePlate.widthFactor,
+                board.h * GLASS.basePlate.heightFactor,
+                board.depth * GLASS.basePlate.depthScale,
+              ]}
+              radius={board.depth * GLASS.basePlate.radiusFactor}
               smoothness={3}
-              position={[0, 0, -board.depth * 0.6]}
+              position={[0, 0, -board.depth * GLASS.basePlate.zOffsetFactor]}
             >
               <MeshTransmissionMaterial
                 buffer={buffer.texture}
@@ -661,6 +721,7 @@ function GlassScene({
               register={register}
               assemblyDelay={assemblyDelays?.keyDelays[i]}
               dropDistance={dropDist}
+              timeline={timeline}
             />
           ))}
         </group>
@@ -708,19 +769,29 @@ export default function GlassKeyboard({
   return (
     <>
       {/* Reserves the keyboard's spot in the page flow; the 3D scene renders
-          into the fullscreen canvas below and aligns with this rect. */}
+          into the fullscreen canvas below and aligns with this rect. It is
+          also the R3F event source: the fullscreen canvas itself ignores
+          pointer events so the drift-wall tiles behind it stay hoverable
+          and clickable everywhere outside the keyboard's footprint. */}
       <div
         ref={holderRef}
         aria-hidden
-        style={{ width: "100%", aspectRatio: GLASS.boardAspect }}
+        style={{
+          width: "100%",
+          aspectRatio: GLASS.boardAspect,
+          pointerEvents: "auto",
+          touchAction: "none",
+        }}
       />
-      <div className="fixed inset-0" style={{ zIndex: 5, pointerEvents: "auto" }}>
+      <div className="fixed inset-0" style={{ zIndex: 5, pointerEvents: "none" }}>
         <Canvas
           orthographic
           camera={{ position: [0, 0, 600], zoom: 1, near: 0.1, far: 2000 }}
           gl={{ alpha: true, antialias: true }}
-          dpr={[1, 1.5]}
+          dpr={[1, GLASS.maxDpr]}
           style={{ background: "transparent" }}
+          eventSource={holderRef as React.RefObject<HTMLElement>}
+          eventPrefix="client"
         >
           <GlassScene
             rect={rect}
