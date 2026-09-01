@@ -256,6 +256,11 @@ export default function VideoBackdrop() {
     );
     scene.add(quad);
 
+    let raf = 0;
+    let lastHeavy = 0;
+    let lastFrameT = 0;
+    let currentVideoRow = 0;
+
     const resize = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -273,9 +278,26 @@ export default function VideoBackdrop() {
       off.height = rows;
       videoCells.width = cols;
       videoCells.height = Math.ceil(rows * BACKDROP.videoScreens);
+
+      // Resizing blanks the ascii canvas — re-rasterize on the very next
+      // frame (instead of waiting out the targetFps throttle) so the
+      // picture can't be left stale or black mid-drag.
+      lastHeavy = 0;
+      asciiTex.needsUpdate = true;
     };
     resize();
     window.addEventListener("resize", resize);
+
+    // If the GPU drops the WebGL context (can happen under memory pressure,
+    // e.g. while drag-resizing), re-upload everything once it's restored so
+    // the backdrop never stays frozen. (three prevents the default on
+    // contextlost itself, which is what allows the restore.)
+    const onContextRestored = () => {
+      lastHeavy = 0;
+      asciiTex.needsUpdate = true;
+      fieldTex.needsUpdate = true;
+    };
+    displayCanvas.addEventListener("webglcontextrestored", onContextRestored);
 
     // --- Wave field (after reactbits' RippleDistortion) ------------------
 
@@ -469,11 +491,6 @@ export default function VideoBackdrop() {
 
     // --- Render loop ------------------------------------------------------
 
-    let raf = 0;
-    let lastHeavy = 0;
-    let lastFrameT = 0;
-    let currentVideoRow = 0;
-
     const render = (t: number) => {
       raf = requestAnimationFrame(render);
       const dt = lastFrameT ? Math.min(0.05, (t - lastFrameT) / 1000) : 0;
@@ -607,6 +624,7 @@ export default function VideoBackdrop() {
       window.removeEventListener("pointerdown", tryPlay);
       window.removeEventListener("keydown", tryPlay);
       window.removeEventListener("pointermove", onPointerMove);
+      displayCanvas.removeEventListener("webglcontextrestored", onContextRestored);
       videoB.pause();
       videoB.removeAttribute("src");
       activeVideoRef.current = null;

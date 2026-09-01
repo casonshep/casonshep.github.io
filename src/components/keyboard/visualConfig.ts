@@ -63,30 +63,12 @@ export const INTRO = {
    *  the keyboard (letters get Shift for capitals). */
   sentence: "hi, im cason. I build things and do stuff",
 
-  /** Delay before typing begins after the first interaction, ms. [100 … 800] */
-  startDelay: 350,
+  /** Typing is scrubbed by scroll, like the assembly: once the keyboard
+   *  has built (ASSEMBLY.scrollRange), this much additional scroll (as a
+   *  fraction of viewport height) types out the sentence and links —
+   *  scrolling back up deletes them again. [0.3 … 2] */
+  scrollRange: 0.8,
 
-  /** Base typing speed per character, ms. [30 … 150]
-   *  Actual delay = base + random jitter up to `jitter`. */
-  charDelay: 20,
-
-  /** Random jitter added to each character delay, ms. [0 … 120] */
-  jitter: 50,
-
-  /** Extra pause after a period, ms. [100 … 600] */
-  periodPause: 380,
-
-  /** Extra pause after a comma, ms. [100 … 400] */
-  commaPause: 240,
-
-  /** Extra pause after a space, ms. [30 … 200] */
-  spacePause: 90,
-
-  /** Pause between the sentence finishing and the links starting, ms. [200 … 1200] */
-  sentenceToLinksPause: 650,
-
-  /** Pause between finishing one link and starting the next, ms. [100 … 800] */
-  linkGap: 400,
 
   /** Font size of the typed sentence. CSS clamp string. */
   fontSize: "clamp(1.4rem, 4vw, 2.6rem)",

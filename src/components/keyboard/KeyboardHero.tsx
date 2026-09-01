@@ -9,12 +9,10 @@ import { links } from "@/lib/links";
 
 const SENTENCE = INTRO.sentence;
 
-function delayAfter(char: string): number {
-  if (char === ".") return INTRO.periodPause + Math.random() * 120;
-  if (char === ",") return INTRO.commaPause + Math.random() * 80;
-  if (char === " ") return INTRO.spacePause + Math.random() * 60;
-  return INTRO.charDelay + Math.random() * INTRO.jitter;
-}
+// Everything the keyboard types, in order — the sentence, then each link
+// label. Scroll progress maps onto this stream one character at a time.
+const TYPE_STREAM =
+  SENTENCE + links.map((l) => l.label.toLowerCase()).join("");
 
 const HERO_STYLE_TAG = `
 @keyframes kb-cursor-blink {
@@ -62,9 +60,6 @@ export default function KeyboardHero() {
   const [phase, setPhase] = useState<"waiting" | "sentence" | "nav" | "done">(
     "waiting",
   );
-  // The intro starts on the visitor's first interaction: browsers only allow
-  // audio after a user gesture, so gating on one lets the typing be heard.
-  const [started, setStarted] = useState(false);
   // The typed-text element, measured by the 3D scene to back it with glass.
   const [pillEl, setPillEl] = useState<HTMLElement | null>(null);
   const pillPlaceholderRef = useRef<HTMLDivElement>(null);
@@ -116,20 +111,22 @@ export default function KeyboardHero() {
     }
   });
 
+  // Browsers only allow audio after a user gesture — unlock on the first
+  // one so the scroll-typed keys become audible.
   useEffect(() => {
-    if (started) return;
-    const start = () => {
-      controllerRef.current?.unlockAudio();
-      setStarted(true);
-    };
-    window.addEventListener("pointerdown", start, { once: true });
-    window.addEventListener("keydown", start, { once: true });
+    const unlock = () => controllerRef.current?.unlockAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
     return () => {
-      window.removeEventListener("pointerdown", start);
-      window.removeEventListener("keydown", start);
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
     };
-  }, [started]);
+  }, []);
 
+  // Typing is scrubbed by scroll, like the assembly: once the keyboard has
+  // built (ASSEMBLY.scrollRange of scroll), the next INTRO.scrollRange of
+  // scroll types the sentence and links one character at a time — with the
+  // matching keys pressing on the 3D keyboard. Scrolling back deletes.
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       // Skip the animation entirely: jump straight to the final content.
@@ -140,51 +137,52 @@ export default function KeyboardHero() {
       return;
     }
 
-    if (!started) return;
+    let raf = 0;
+    let lastCount = -1;
 
-    let cancelled = false;
-    const timeouts: number[] = [];
-    const wait = (ms: number) =>
-      new Promise<void>((resolve) => {
-        timeouts.push(window.setTimeout(resolve, ms));
-      });
-
-    (async () => {
-      await wait(INTRO.startDelay);
-      if (cancelled) return;
-      setPhase("sentence");
-      for (const char of SENTENCE) {
-        if (cancelled) return;
-        controllerRef.current?.typeChar(char);
-        setSentence((t) => t + char);
-        await wait(delayAfter(char));
-      }
-      await wait(INTRO.sentenceToLinksPause);
-      if (cancelled) return;
-      setPhase("nav");
-      for (let i = 0; i < links.length; i++) {
-        const label = links[i].label.toLowerCase();
-        for (const char of label) {
-          if (cancelled) return;
-          controllerRef.current?.typeChar(char);
-          setNavTexts((prev) => {
-            const next = [...prev];
-            next[i] = next[i] + char;
-            return next;
-          });
-          await wait(delayAfter(char));
-        }
-        await wait(INTRO.linkGap);
-      }
-      if (cancelled) return;
-      setPhase("done");
-    })();
-
-    return () => {
-      cancelled = true;
-      timeouts.forEach((t) => window.clearTimeout(t));
+    const apply = (count: number) => {
+      setSentence(TYPE_STREAM.slice(0, Math.min(count, SENTENCE.length)));
+      let consumed = SENTENCE.length;
+      setNavTexts(
+        links.map((l) => {
+          const label = l.label.toLowerCase();
+          const n = Math.max(0, Math.min(label.length, count - consumed));
+          consumed += label.length;
+          return label.slice(0, n);
+        }),
+      );
+      setPhase(
+        count <= 0
+          ? "waiting"
+          : count < SENTENCE.length
+            ? "sentence"
+            : count < TYPE_STREAM.length
+              ? "nav"
+              : "done",
+      );
     };
-  }, [started]);
+
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const vh = window.innerHeight;
+      const start = vh * (ASSEMBLY.enabled ? ASSEMBLY.scrollRange : 0);
+      const span = Math.max(1, vh * INTRO.scrollRange);
+      const q = Math.min(1, Math.max(0, (window.scrollY - start) / span));
+      const count = Math.round(q * TYPE_STREAM.length);
+      if (count === lastCount) return;
+      if (lastCount >= 0 && count > lastCount) {
+        // Press the newly typed keys on the 3D keyboard.
+        for (let i = lastCount; i < count; i++) {
+          controllerRef.current?.typeChar(TYPE_STREAM[i]);
+        }
+      }
+      lastCount = count;
+      apply(count);
+    };
+    tick();
+
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   return (
     <div
@@ -206,15 +204,15 @@ export default function KeyboardHero() {
       />
 
       {/* Landing section: pinned while the visitor scrolls through the
-          assembly runway, so the keyboard builds/un-builds in place as
-          they scroll (see ASSEMBLY.scrollRange). */}
+          runway — first the keyboard assembles (ASSEMBLY.scrollRange), then
+          the sentence and links type out (INTRO.scrollRange). */}
       <div
         className="pointer-events-none"
-        style={
-          ASSEMBLY.enabled
-            ? { height: `calc(${1 + ASSEMBLY.scrollRange} * 100dvh)` }
-            : undefined
-        }
+        style={{
+          height: `calc(${
+            1 + (ASSEMBLY.enabled ? ASSEMBLY.scrollRange : 0) + INTRO.scrollRange
+          } * 100dvh)`,
+        }}
       >
       <section className="pointer-events-none sticky top-0 flex h-dvh w-full flex-col">
       <main
@@ -233,16 +231,8 @@ export default function KeyboardHero() {
           {(() => {
             const pillText = (
               <>
-                {phase === "waiting" ? (
-                  <span style={{ color: "rgba(255,255,255,0.55)" }}>
-                    press any key
-                  </span>
-                ) : (
-                  sentence
-                )}
-                {(phase === "waiting" || phase === "sentence") && (
-                  <span className="kb-cursor" />
-                )}
+                {sentence}
+                {phase === "sentence" && <span className="kb-cursor" />}
               </>
             );
             const pillStyle = {
@@ -284,6 +274,10 @@ export default function KeyboardHero() {
                     ...pillStyle,
                     position: "fixed",
                     margin: 0,
+                    // Nothing shows before typing begins: display:none
+                    // collapses this to a zero rect, which also scales the
+                    // glass slab that tracks it down to nothing.
+                    display: phase === "waiting" ? "none" : undefined,
                   }}
                 >
                   {pillText}
