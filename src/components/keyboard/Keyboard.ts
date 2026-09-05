@@ -443,12 +443,39 @@ const CATEGORY_PROFILE: Record<
   modifier: { rate: [0.86, 0.92], gain: 0.68, filterHz: 3000 },
 };
 
+/** Global mute, toggled by the `/mute` chat command. Remembered per
+ *  browser: a mute that forgot itself on reload would be no mute at all.
+ *  Read lazily — this module is evaluated on the server too. */
+const MUTE_KEY = "keyboard.muted";
+let soundMuted: boolean | null = null;
+
+export function isKeySoundMuted() {
+  if (soundMuted === null) {
+    try {
+      soundMuted = localStorage.getItem(MUTE_KEY) === "1";
+    } catch {
+      soundMuted = false;
+    }
+  }
+  return soundMuted;
+}
+
+export function setKeySoundMuted(muted: boolean) {
+  soundMuted = muted;
+  try {
+    localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+  } catch {
+    // Not being able to remember it is not worth failing over.
+  }
+}
+
 export function playKeySound(
   category: SoundCategory,
   muted: boolean,
   panHint = 0,
 ) {
   if (typeof window === "undefined") return;
+  if (isKeySoundMuted()) return;
   getThockEngine().then((engine) => {
     if (!engine || !engine.buffer) return;
     const { ctx, dry, wet, supportsPanning, buffer } = engine;
@@ -532,6 +559,24 @@ export function makeKeyboardController(
   };
 }
 
+/** Type a whole word on the board, one key at a time. Calling `typeChar`
+ *  in a loop presses every key in the same tick and releases them together
+ *  — a chord, not typing — so the characters have to be spread out. Returns
+ *  a cancel function; the caller owns the timers it started. */
+export function typeString(
+  controller: KeyboardController,
+  text: string,
+  { charMs = 95, jitterMs = 45 } = {},
+) {
+  const timers: number[] = [];
+  let at = 0;
+  for (const char of text) {
+    timers.push(window.setTimeout(() => controller.typeChar(char), at));
+    at += charMs + Math.random() * jitterMs;
+  }
+  return () => timers.forEach((t) => window.clearTimeout(t));
+}
+
 const MODIFIER_FAMILIES: Array<{ modifier: string; ids: string[] }> = [
   { modifier: "Alt", ids: ["lalt", "ralt"] },
   { modifier: "Control", ids: ["lctrl"] },
@@ -548,9 +593,14 @@ export function useGlobalKeyInput(
   useEffect(() => {
     const held = new Set<string>();
 
+    // Typing normally leaves the board alone — otherwise every keystroke in
+    // a form would clatter across the room. A field marked data-key-echo
+    // opts back in: the chat composer *wants* the board to type along, which
+    // is rather the point of a room built around a keyboard.
     const isTypingTarget = (target: EventTarget | null) => {
       const el = target as HTMLElement | null;
       if (!el) return false;
+      if (el.closest?.("[data-key-echo]")) return false;
       const tag = el.tagName?.toLowerCase();
       return tag === "input" || tag === "textarea" || el.isContentEditable;
     };

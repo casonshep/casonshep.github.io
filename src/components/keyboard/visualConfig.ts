@@ -408,13 +408,15 @@ export const ROOM = {
   },
 
   /** Top-right nav, typed in one character at a time on load — the
-   *  matching keys press on the 3D keyboard as it types. */
+   *  matching keys press on the 3D keyboard as it types. Clicking an item
+   *  types it again and raises its panel; the label is the key its content
+   *  is filed under in room/navContent.ts. */
   nav: {
     items: [
-      { label: "me", href: "#me" },
-      { label: "projects", href: "#projects" },
-      { label: "art", href: "#art" },
-    ] as readonly { label: string; href: string }[],
+      { label: "me" },
+      { label: "projects" },
+      { label: "art" },
+    ] as readonly { label: string }[],
     /** Delay before typing starts, ms. [0 … 3000] */
     startDelayMs: 900,
     /** Time per character, ms. [40 … 200] */
