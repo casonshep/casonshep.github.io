@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { type KeyboardController } from "./Keyboard";
 import GlassKeyboard from "./GlassKeyboard";
 import VideoBackdrop from "./VideoBackdrop";
-import { ASSEMBLY, BACKDROP, INTRO } from "./visualConfig";
+import { ASSEMBLY, BACKDROP, INTRO, MELT } from "./visualConfig";
 import { links } from "@/lib/links";
 
 const SENTENCE = INTRO.sentence;
@@ -205,12 +205,16 @@ export default function KeyboardHero() {
 
       {/* Landing section: pinned while the visitor scrolls through the
           runway — first the keyboard assembles (ASSEMBLY.scrollRange), then
-          the sentence and links type out (INTRO.scrollRange). */}
+          the sentence and links type out (INTRO.scrollRange), then the
+          keyboard melts away (MELT.scrollRange). */}
       <div
         className="pointer-events-none"
         style={{
           height: `calc(${
-            1 + (ASSEMBLY.enabled ? ASSEMBLY.scrollRange : 0) + INTRO.scrollRange
+            1 +
+            (ASSEMBLY.enabled ? ASSEMBLY.scrollRange : 0) +
+            INTRO.scrollRange +
+            (MELT.enabled ? MELT.scrollRange : 0)
           } * 100dvh)`,
         }}
       >

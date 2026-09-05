@@ -1,5 +1,10 @@
-import KeyboardHero from "@/components/keyboard/KeyboardHero";
+import DarkRoom from "@/components/room/DarkRoom";
 
 export default function Home() {
-  return <KeyboardHero />;
+  return (
+    <main>
+      <h1 className="sr-only">Cason</h1>
+      <DarkRoom />
+    </main>
+  );
 }

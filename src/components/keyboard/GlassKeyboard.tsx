@@ -28,7 +28,8 @@ import {
   type KeyboardController,
   type KeyConfig,
 } from "./Keyboard";
-import { GLASS, ASSEMBLY, tintStrength } from "./visualConfig";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { GLASS, ASSEMBLY, INTRO, MELT, parseColor, tintStrength } from "./visualConfig";
 
 // 3D glass keyboard, after https://github.com/olivierlarose/3d-distorted-glass-effect:
 // keycaps are MeshTransmissionMaterial meshes that refract the ASCII video
@@ -72,6 +73,194 @@ function assemblyEase(t: number): number {
   if (t <= 0) return 0;
   if (t >= 1) return 1;
   return 1 - Math.pow(1 - t, ASSEMBLY.easePower);
+}
+
+const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t);
+const smoothstep = (t: number) => {
+  const x = clamp01(t);
+  return x * x * (3 - 2 * x);
+};
+/** Deterministic pseudo-random in [0,1) from a key's position (+ a salt),
+ *  so every render — and every visitor — gets the same shuffle. */
+function hash01(x: number, y: number, salt = 0): number {
+  const s = Math.sin(x * 12.9898 + y * 78.233 + salt * 37.719) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+// ---------------------------------------------------------------------------
+// Molten glass: shared material driver for the melt sequence.
+// ---------------------------------------------------------------------------
+type MoltenMaterial = THREE.MeshPhysicalMaterial & {
+  distortion: number;
+  temporalDistortion: number;
+};
+// drei's ref type is a props-shaped alias; at runtime it's the material
+// instance (a MeshPhysicalMaterial with the shader uniforms exposed as
+// properties), which is what applyMolten drives.
+type TransmissionRef = React.ComponentRef<typeof MeshTransmissionMaterial>;
+const asMolten = (m: TransmissionRef | null) =>
+  m as unknown as MoltenMaterial | null;
+
+interface MoltenBase {
+  color: [number, number, number];
+  roughness: number;
+  distortion: number;
+  temporalDistortion: number;
+}
+
+const GLOW = parseColor(MELT.glowColor);
+const MOLTEN_TINT = tintStrength(MELT.moltenTint);
+const MOLTEN_TINT_STRENGTH = parseColor(MELT.moltenTint)[3];
+
+/** Blends a glass material from its solid look (m = 0) to molten (m = 1):
+ *  amber emissive glow, warm tint, softened surface, wobbling refraction. */
+function applyMolten(mat: MoltenMaterial, base: MoltenBase, m: number) {
+  const k = clamp01(m);
+  mat.emissive.setRGB(GLOW[0], GLOW[1], GLOW[2]);
+  mat.emissiveIntensity = GLOW[3] * MELT.glowIntensity * k;
+  const tk = k * MOLTEN_TINT_STRENGTH;
+  mat.color.setRGB(
+    base.color[0] + (MOLTEN_TINT[0] * base.color[0] - base.color[0]) * tk,
+    base.color[1] + (MOLTEN_TINT[1] * base.color[1] - base.color[1]) * tk,
+    base.color[2] + (MOLTEN_TINT[2] * base.color[2] - base.color[2]) * tk,
+  );
+  mat.roughness = base.roughness + (MELT.moltenRoughness - base.roughness) * k;
+  mat.distortion =
+    base.distortion + (MELT.moltenDistortion - base.distortion) * k;
+  mat.temporalDistortion =
+    base.temporalDistortion +
+    (MELT.moltenTemporalDistortion - base.temporalDistortion) * k;
+}
+
+const KEY_BASE: MoltenBase = {
+  color: tintStrength(GLASS.key.color),
+  roughness: GLASS.key.roughness,
+  distortion: GLASS.key.distortion,
+  temporalDistortion: GLASS.key.temporalDistortion,
+};
+const PLATE_BASE: MoltenBase = {
+  color: tintStrength(GLASS.basePlate.color),
+  roughness: GLASS.basePlate.roughness,
+  distortion: 0,
+  temporalDistortion: 0,
+};
+
+/** Splits a piece's local melt time t ∈ [0,1] into its phases:
+ *  soft — slumping/pooling in place, drip — the tail forming,
+ *  slide — the whole blob sliding off (eased), slideLinear — raw. */
+function meltPhases(t: number, sagPortion: number) {
+  const soft = smoothstep(t / sagPortion);
+  // The tail starts forming a little before the blob lets go.
+  const dripStart = sagPortion * 0.6;
+  const drip = smoothstep((t - dripStart) / (1 - dripStart));
+  const slideLinear = clamp01((t - sagPortion) / (1 - sagPortion));
+  return {
+    soft,
+    drip,
+    slide: Math.pow(slideLinear, MELT.fallPower),
+    slideLinear,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Molten deformation: a vertex-shader pass injected into the transmission
+// material. Rigid scaling reads as "stiff", so instead every vertex moves:
+// the cap slumps flat and squats, spreads sideways (most at the bottom, so
+// neighbours run together into one pool), wobbles like a liquid surface,
+// and finally its underside stretches into a tapering tail. The rounded
+// box is built with face subdivisions so those curves have vertices.
+// ---------------------------------------------------------------------------
+interface MeltUniforms {
+  uSoft: { value: number };
+  uDrip: { value: number };
+  uH: { value: number };
+  uW: { value: number };
+  uSeed: { value: number };
+  uAmp: { value: number };
+  uMeltTime: { value: number };
+}
+
+const f = (n: number) => n.toFixed(4);
+const MELT_VERTEX_CHUNK = `
+#include <begin_vertex>
+{
+  // 0 at the top edge of the piece … 1 at its bottom edge.
+  float ny = clamp(0.5 - transformed.y / uH, 0.0, 1.0);
+  float soft = uSoft * uAmp;
+  // Slump: collapse toward the plate and squat.
+  transformed.z *= 1.0 - soft * ${f(MELT.slump)};
+  transformed.y *= 1.0 - soft * ${f(MELT.squash)};
+  // Pool: spread sideways, mostly at the base, into the neighbours.
+  transformed.x *= 1.0 + soft * ${f(MELT.spread)} * (0.35 + 0.65 * ny);
+  transformed.y -= soft * ${f(MELT.spread)} * uH * 0.12 * ny;
+  // Liquid wobble.
+  float wobY = sin(transformed.y * (6.2831 / uH) * 1.3 + uSeed + uMeltTime);
+  float wobX = cos(transformed.x * (6.2831 / uW) * 0.9 + uSeed * 1.7 + uMeltTime * 0.8);
+  transformed.x += wobY * soft * uW * ${f(MELT.wobble)};
+  transformed.z += wobX * soft * uH * ${f(MELT.wobble)} * 0.6;
+  transformed.y += wobX * soft * uH * ${f(MELT.wobble)} * 0.4;
+  // Drip: the underside stretches into a tapering tail.
+  float tail = ny * ny * uDrip * uAmp;
+  transformed.y -= tail * uH * ${f(MELT.tailLength)};
+  transformed.x *= 1.0 - tail * ${f(MELT.tailNarrow)};
+  transformed.z *= 1.0 - tail * 0.5;
+}
+`;
+const MELT_VERTEX_HEADER = `
+#ifndef MELT_UNIFORMS
+#define MELT_UNIFORMS
+uniform float uSoft;
+uniform float uDrip;
+uniform float uH;
+uniform float uW;
+uniform float uSeed;
+uniform float uAmp;
+uniform float uMeltTime;
+#endif
+`;
+
+const meltInstalled = new WeakSet<THREE.Material>();
+
+/** Wraps the material's compile hook (drei installs its own) to add the
+ *  melt uniforms and vertex pass. Safe to call every frame: no-op once done. */
+function ensureMeltShader(mat: MoltenMaterial, uniforms: MeltUniforms) {
+  if (meltInstalled.has(mat)) return;
+  meltInstalled.add(mat);
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer) => {
+    prev.call(mat, shader, renderer);
+    // drei replaces shader.uniforms wholesale, so add ours afterwards.
+    Object.assign(shader.uniforms, uniforms);
+    if (shader.vertexShader.includes("MELT_UNIFORMS")) return; // already patched
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", `#include <common>\n${MELT_VERTEX_HEADER}`)
+      .replace("#include <begin_vertex>", MELT_VERTEX_CHUNK);
+  };
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.customProgramCacheKey = () => `${prevKey()}|melt`;
+  mat.needsUpdate = true;
+}
+
+function makeMeltUniforms(w: number, h: number, seed: number, amp: number): MeltUniforms {
+  return {
+    uSoft: { value: 0 },
+    uDrip: { value: 0 },
+    uH: { value: h },
+    uW: { value: w },
+    uSeed: { value: seed * Math.PI * 2 },
+    uAmp: { value: amp },
+    uMeltTime: { value: 0 },
+  };
+}
+
+/** Rounded box with face subdivisions (so the melt has vertices to bend). */
+function useMeltGeometry(w: number, h: number, d: number, radius: number, segments: number) {
+  const geo = useMemo(
+    () => new RoundedBoxGeometry(w, h, d, segments, Math.min(radius, Math.min(w, h, d) / 2)),
+    [w, h, d, radius, segments],
+  );
+  useEffect(() => () => geo.dispose(), [geo]);
+  return geo;
 }
 
 function makeLegendTexture(
@@ -129,6 +318,9 @@ function GlassKey({
   assemblyDelay,
   dropDistance,
   timeline,
+  melt,
+  meltDelay,
+  fallDistance,
 }: {
   layout: LayoutKey;
   depth: number;
@@ -138,11 +330,34 @@ function GlassKey({
   dropDistance?: number;
   /** Scroll-scrubbed assembly time in virtual ms; see GlassScene. */
   timeline: React.RefObject<number>;
+  /** Scroll-scrubbed melt progress 0..1; see GlassScene. */
+  melt: React.RefObject<number>;
+  /** When (in melt progress) this key starts melting. [0 … MELT.stagger] */
+  meltDelay: number;
+  /** How far (px) the key falls once it lets go. */
+  fallDistance: number;
 }) {
   const { cfg, x, y, w, h } = layout;
   const group = useRef<THREE.Group>(null);
   const assemblyRef = useRef<THREE.Group>(null);
+  const meltRef = useRef<THREE.Group>(null);
+  const matRef = useRef<TransmissionRef>(null);
+  const legendMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const lastMeltT = useRef(-1);
   const pressedRef = useRef(false);
+
+  // Per-key randomness for the melt: sideways drift and spin while sliding.
+  const meltRand = useMemo(
+    () => ({
+      drift: (hash01(x, y, 1) * 2 - 1) * MELT.fallDrift,
+      spin: ((hash01(x, y, 2) * 2 - 1) * MELT.fallSpin * Math.PI) / 180,
+    }),
+    [x, y],
+  );
+  // Shader uniforms are mutated per frame, so they live in a ref.
+  const meltUniformsRef = useRef<MeltUniforms>(
+    makeMeltUniforms(w, h, hash01(x, y, 4), 1),
+  );
 
   const tumbleAngle = useMemo(() => {
     if (!ASSEMBLY.enabled) return 0;
@@ -163,7 +378,7 @@ function GlassKey({
     [cfg.id, register],
   );
 
-  useFrame((_, dt) => {
+  useFrame((state, dt) => {
     const g = group.current;
     if (!g) return;
     const target = pressedRef.current ? -depth * GLASS.pressTravelFactor : 0;
@@ -185,21 +400,50 @@ function GlassKey({
         a.rotation.z = (1 - progress) * tumbleAngle;
       }
     }
+
+    // Melt: slump and pool in place (vertex shader), then slide off slowly.
+    const mg = meltRef.current;
+    const mat = asMolten(matRef.current);
+    const meltUniforms = meltUniformsRef.current;
+    if (mg && mat) {
+      ensureMeltShader(mat, meltUniforms);
+      meltUniforms.uMeltTime.value = state.clock.elapsedTime * MELT.wobbleSpeed;
+      meltUniforms.uH.value = h;
+      meltUniforms.uW.value = w;
+      const duration = Math.max(0.05, 1 - MELT.stagger);
+      const t = clamp01(((melt.current ?? 0) - meltDelay) / duration);
+      if (t !== lastMeltT.current) {
+        lastMeltT.current = t;
+        const { soft, drip, slide, slideLinear } = meltPhases(t, MELT.sagPortion);
+        meltUniforms.uSoft.value = soft;
+        meltUniforms.uDrip.value = drip;
+        // Sink onto the plate as it softens, then slide off.
+        mg.position.z = -depth * MELT.sink * soft;
+        mg.position.y = -slide * fallDistance;
+        mg.position.x = meltRand.drift * w * slideLinear;
+        mg.rotation.z = meltRand.spin * slideLinear;
+        mg.visible = slide < 1;
+        applyMolten(mat, KEY_BASE, soft);
+        if (legendMatRef.current) {
+          legendMatRef.current.opacity = 1 - clamp01(soft * 1.6);
+        }
+      }
+    }
   });
 
   const legend = useMemo(() => makeLegendTexture(cfg, w, h), [cfg, w, h]);
   useEffect(() => () => legend?.dispose(), [legend]);
 
   const radius = Math.min(w, h) * GLASS.keyRadiusFactor;
+  const geometry = useMeltGeometry(w, h, depth, radius, MELT.keySegments);
 
   return (
     <group position={[x, y, 0]}>
       <group ref={assemblyRef}>
+      <group ref={meltRef}>
         <group ref={group}>
-          <RoundedBox
-            args={[w, h, depth]}
-            radius={radius}
-            smoothness={3}
+          <mesh
+            geometry={geometry}
             onPointerDown={(e) => {
               e.stopPropagation();
               pressedRef.current = true;
@@ -217,6 +461,7 @@ function GlassKey({
             }}
           >
             <MeshTransmissionMaterial
+              ref={matRef}
               buffer={buffer}
               transmission={1}
               thickness={depth * GLASS.key.thicknessFactor}
@@ -229,11 +474,12 @@ function GlassKey({
               temporalDistortion={GLASS.key.temporalDistortion}
               color={tintStrength(GLASS.key.color)}
             />
-          </RoundedBox>
+          </mesh>
           {legend && (
             <mesh position={[0, 0, depth / 2 + 0.6]}>
               <planeGeometry args={[w, h]} />
               <meshBasicMaterial
+                ref={legendMatRef}
                 map={legend}
                 transparent
                 depthWrite={false}
@@ -242,6 +488,7 @@ function GlassKey({
             </mesh>
           )}
         </group>
+      </group>
       </group>
     </group>
   );
@@ -254,6 +501,8 @@ function AnimatedBasePlate({
   buffer,
   riseDistance,
   timeline,
+  melt,
+  fallDistance,
 }: {
   width: number;
   height: number;
@@ -261,10 +510,29 @@ function AnimatedBasePlate({
   buffer: THREE.Texture;
   riseDistance: number;
   timeline: React.RefObject<number>;
+  /** Scroll-scrubbed melt progress 0..1; see GlassScene. */
+  melt: React.RefObject<number>;
+  fallDistance: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const meltRef = useRef<THREE.Group>(null);
+  const matRef = useRef<TransmissionRef>(null);
+  const lastMeltT = useRef(-1);
+  const plateW = width * GLASS.basePlate.widthFactor;
+  const plateH = height * GLASS.basePlate.heightFactor;
+  const plateD = depth * GLASS.basePlate.depthScale;
+  const meltUniformsRef = useRef<MeltUniforms>(
+    makeMeltUniforms(plateW, plateH, 0.37, MELT.plateAmount),
+  );
+  const geometry = useMeltGeometry(
+    plateW,
+    plateH,
+    plateD,
+    depth * GLASS.basePlate.radiusFactor,
+    MELT.plateSegments,
+  );
 
-  useFrame(() => {
+  useFrame((state) => {
     const g = groupRef.current;
     if (!g) return;
     const elapsed = timeline.current ?? 0;
@@ -276,21 +544,39 @@ function AnimatedBasePlate({
       g.position.y = -(1 - progress) * riseDistance;
     }
     g.visible = true;
+
+    // Melt: the plate lets go after most keys have (MELT.plateDelay).
+    const mg = meltRef.current;
+    const mat = asMolten(matRef.current);
+    const meltUniforms = meltUniformsRef.current;
+    if (mg && mat) {
+      ensureMeltShader(mat, meltUniforms);
+      meltUniforms.uMeltTime.value = state.clock.elapsedTime * MELT.wobbleSpeed;
+      meltUniforms.uH.value = plateH;
+      meltUniforms.uW.value = plateW;
+      const duration = Math.max(0.05, 1 - MELT.plateDelay);
+      const t = clamp01(((melt.current ?? 0) - MELT.plateDelay) / duration);
+      if (t !== lastMeltT.current) {
+        lastMeltT.current = t;
+        const { soft, drip, slide } = meltPhases(t, MELT.sagPortion);
+        meltUniforms.uSoft.value = soft;
+        meltUniforms.uDrip.value = drip;
+        mg.position.y = -slide * fallDistance;
+        mg.visible = slide < 1;
+        applyMolten(mat, PLATE_BASE, soft);
+      }
+    }
   });
 
   return (
     <group ref={groupRef}>
-      <RoundedBox
-        args={[
-          width * GLASS.basePlate.widthFactor,
-          height * GLASS.basePlate.heightFactor,
-          depth * GLASS.basePlate.depthScale,
-        ]}
-        radius={depth * GLASS.basePlate.radiusFactor}
-        smoothness={3}
+      <group ref={meltRef}>
+      <mesh
+        geometry={geometry}
         position={[0, 0, -depth * GLASS.basePlate.zOffsetFactor]}
       >
         <MeshTransmissionMaterial
+          ref={matRef}
           buffer={buffer}
           transmission={1}
           thickness={depth * GLASS.basePlate.thicknessFactor}
@@ -300,7 +586,8 @@ function AnimatedBasePlate({
           anisotropicBlur={GLASS.basePlate.anisotropicBlur}
           color={tintStrength(GLASS.basePlate.color)}
         />
-      </RoundedBox>
+      </mesh>
+      </group>
     </group>
   );
 }
@@ -555,6 +842,35 @@ function GlassScene({
   const dropDist = assemblyDelays ? size.height * ASSEMBLY.keyDropHeight : 0;
   const riseDist = assemblyDelays ? size.height * ASSEMBLY.baseRiseHeight : 0;
 
+  // Melt sequence (see MELT in visualConfig): progress 0..1 scrubbed by the
+  // scroll range that follows the assembly and typing runways.
+  const meltEnabled = useMemo(
+    () =>
+      MELT.enabled &&
+      !(
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ),
+    [],
+  );
+  const melt = useRef(0);
+  const meltDelays = useMemo(() => {
+    if (!board) return null;
+    // Each key's start time within the stagger window: a shuffle, biased
+    // by row so the melt can pool from the bottom (or drip from the top).
+    return board.keys.map(({ x, y }) => {
+      const rowFrac = board.h > 0 ? 0.5 - y / board.h : 0.5; // 0 top … 1 bottom
+      const rand = hash01(x, y, 3);
+      const bias = MELT.rowBias;
+      const order =
+        bias >= 0
+          ? rand * (1 - bias) + (1 - rowFrac) * bias
+          : rand * (1 + bias) + rowFrac * -bias;
+      return clamp01(order) * MELT.stagger;
+    });
+  }, [board]);
+  const fallDist = size.height * MELT.fallHeight;
+
   const assemblyEndMs = useMemo(() => {
     if (!assemblyDelays) return 0;
     return Math.max(...assemblyDelays.keyDelays) + ASSEMBLY.keyDuration;
@@ -591,6 +907,16 @@ function GlassScene({
       timeline.current = assemblyEndMs;
     }
 
+    if (meltEnabled) {
+      const vh = window.innerHeight;
+      const start =
+        vh * ((ASSEMBLY.enabled ? ASSEMBLY.scrollRange : 0) + INTRO.scrollRange);
+      const span = Math.max(1, vh * MELT.scrollRange);
+      melt.current = clamp01((window.scrollY - start) / span);
+    } else {
+      melt.current = 0;
+    }
+
     const g = boardGroupRef.current;
     if (!g) return;
 
@@ -622,6 +948,9 @@ function GlassScene({
         baseRotY = Math.sin(state.clock.elapsedTime * ASSEMBLY.idleSpeed * Math.PI * 2) * ASSEMBLY.idleAmplitude;
       }
     }
+
+    // Melting: ease the board a little further toward the viewer.
+    baseRotX += MELT.tiltX * smoothstep(melt.current);
 
     g.rotation.x = baseRotX + cursorTilt.current.x;
     g.rotation.y = baseRotY + cursorTilt.current.y;
@@ -680,38 +1009,18 @@ function GlassScene({
       </Suspense>
       {board && (
         <group ref={boardGroupRef} position={[board.cx, board.cy, 0]}>
-          {assemblyDelays ? (
-            <AnimatedBasePlate
-              width={board.w}
-              height={board.h}
-              depth={board.depth}
-              buffer={buffer.texture}
-              riseDistance={riseDist}
-              timeline={timeline}
-            />
-          ) : (
-            <RoundedBox
-              args={[
-                board.w * GLASS.basePlate.widthFactor,
-                board.h * GLASS.basePlate.heightFactor,
-                board.depth * GLASS.basePlate.depthScale,
-              ]}
-              radius={board.depth * GLASS.basePlate.radiusFactor}
-              smoothness={3}
-              position={[0, 0, -board.depth * GLASS.basePlate.zOffsetFactor]}
-            >
-              <MeshTransmissionMaterial
-                buffer={buffer.texture}
-                transmission={1}
-                thickness={board.depth * GLASS.basePlate.thicknessFactor}
-                roughness={GLASS.basePlate.roughness}
-                ior={GLASS.basePlate.ior}
-                chromaticAberration={GLASS.basePlate.chromaticAberration}
-                anisotropicBlur={GLASS.basePlate.anisotropicBlur}
-                color={tintStrength(GLASS.basePlate.color)}
-              />
-            </RoundedBox>
-          )}
+          {/* Handles both the assembly rise and the melt; with assembly
+              off riseDist is 0, so it simply sits in place. */}
+          <AnimatedBasePlate
+            width={board.w}
+            height={board.h}
+            depth={board.depth}
+            buffer={buffer.texture}
+            riseDistance={riseDist}
+            timeline={timeline}
+            melt={melt}
+            fallDistance={fallDist}
+          />
           {board.keys.map((layout, i) => (
             <GlassKey
               key={layout.cfg.id}
@@ -722,6 +1031,9 @@ function GlassScene({
               assemblyDelay={assemblyDelays?.keyDelays[i]}
               dropDistance={dropDist}
               timeline={timeline}
+              melt={melt}
+              meltDelay={meltDelays?.[i] ?? 0}
+              fallDistance={fallDist}
             />
           ))}
         </group>

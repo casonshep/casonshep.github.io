@@ -10,7 +10,9 @@
 //
 // Sections: INTRO (typing), BACKDROP (ascii video + clip morphs), GLASS
 // (3D keyboard materials/lights), ASSEMBLY (scroll-scrubbed build),
-// GLASS_SURFACE (unused alternate DOM-glass keyboard variant).
+// ROOM (the dark-room revamp: camera, spotlight, room, room-glass),
+// MELT (scroll-scrubbed molten-glass exit), GLASS_SURFACE (unused
+// alternate DOM-glass keyboard variant).
 // (The charcoal DOM keyboard's colors live in Keyboard.tsx under
 // KEYCAP_THEMES / CASE_THEMES if you want to restyle that variant too.)
 // ============================================================================
@@ -163,7 +165,7 @@ export const BACKDROP = {
   /** ASCII: font size in px (cell size follows from it).
    *  [8 … 24] — 8-10 is fine detail (almost looks like an image, more CPU),
    *  14-18 clearly reads as text, 20+ is chunky abstract blocks. */
-  asciiFontPx: 10,
+  asciiFontPx: 16,
 
   /** ASCII: characters from darkest to brightest. Any length ≥ 2.
    *  More characters = smoother tonal gradient; denser glyphs (#, @, $)
@@ -207,12 +209,12 @@ export const GLASS = {
   /** Width : height ratio of the keyboard's footprint on the page.
    *  Wider (e.g. "15 / 4") = flatter board, narrower (e.g. "15 / 5.5")
    *  = taller keys. */
-  boardAspect: "15 / 4.6",
+  boardAspect: "15 / 5.6",
 
   /** Backward tilt of the whole board, radians. [-0.5 … 0]
    *  0 = viewed dead-on (depth invisible), -0.15 subtle, -0.3 strong
    *  perspective, past -0.45 the top row starts hiding the row behind it. */
-  tiltX: -0.29,
+  tiltX: -0.99,
 
   /** Key thickness as a fraction of one key-unit width. [0.3 … 1.5]
    *  0.3-0.5 = low-profile laptop keys, 0.8-1.2 = chunky mechanical,
@@ -221,12 +223,12 @@ export const GLASS = {
 
   /** Gap between keys as a fraction of one key-unit width. [0.04 … 0.25]
    *  0.04 = nearly touching, 0.1 = classic keyboard, 0.2+ = floating tiles. */
-  keyGapFactor: 0.1,
+  keyGapFactor: 0.0,
 
   /** Keycap corner radius as a fraction of the key's smaller side.
    *  [0.05 … 0.5] — 0.05 = sharp slabs, 0.2 = softened squares,
    *  0.5 = fully pill-shaped. */
-  keyRadiusFactor: 0.24,
+  keyRadiusFactor: 0.04,
 
   /** How far a pressed key sinks, as a fraction of key depth. [0.2 … 0.9]
    *  0.2 = shallow tap, 0.5 = satisfying travel, 0.9 = nearly bottoms out. */
@@ -281,7 +283,7 @@ export const GLASS = {
     /** Refraction thickness as a fraction of key depth. [0.3 … 2]
      *  Higher = background appears more offset/magnified through the key.
      *  Has little effect while ior is near 1. */
-    thicknessFactor: .2,
+    thicknessFactor: .0,
   },
 
   /** Frosted base plate behind the keys. Same knobs and ranges as `key`;
@@ -503,6 +505,124 @@ export const ASSEMBLY = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Melt sequence, scrubbed by scroll: after the sentence and links have typed
+// out, the next MELT.scrollRange of scroll turns the keyboard into molten
+// glass — keys slump, pool into each other, drip and slide off the bottom
+// of the screen, the base plate following. Scrolling back up re-solidifies it.
+// The typed text and link pills stay put.
+// ---------------------------------------------------------------------------
+export const MELT = {
+  /** Master switch. false = the page ends with the typed links. */
+  enabled: true,
+
+  /** Scroll distance that plays the whole melt, as a fraction of the
+   *  viewport height. [0.5 … 4] Higher = slower, more deliberate melt. */
+  scrollRange: 2.4,
+
+  /** How much of the melt is spent staggering the keys' start times.
+   *  [0 … 0.8] — 0 = every key melts in lockstep, 0.6 = the last key
+   *  starts when the first is already 60% gone. Lower keeps the board
+   *  melting as one mass. */
+  stagger: 0.35,
+
+  /** Bias for which keys go first. [-1 … 1] — positive = bottom rows melt
+   *  first (heat pooling at the base), negative = top rows first,
+   *  0 = fully random order. */
+  rowBias: 0.5,
+
+  /** Fraction of each key's own melt spent softening and pooling in place
+   *  before it lets go and slides. [0.2 … 0.8] */
+  sagPortion: 0.4,
+
+  // --- Slump & pool (vertex deformation while softening) ---
+
+  /** How flat the cap collapses, fraction of its depth. [0 … 0.9] */
+  slump: 0.7,
+
+  /** How much the cap squats vertically while softening. [0 … 0.5] */
+  squash: 0.2,
+
+  /** Sideways spread as a fraction of width, strongest at the base — this
+   *  is what makes neighbours run together into one pool. [0 … 1] */
+  spread: 0.55,
+
+  /** Liquid wobble amplitude, fraction of the piece's size. [0 … 0.2] */
+  wobble: 0.07,
+
+  /** Wobble speed. [0 … 3] */
+  wobbleSpeed: 1.2,
+
+  /** How far a softening key sinks toward the plate, fraction of key
+   *  depth. [0 … 1] */
+  sink: 0.45,
+
+  // --- Drip (tail forming, then the slow slide off-screen) ---
+
+  /** Length of the tapering tail the underside stretches into, as a
+   *  multiple of the piece's height. [0 … 6] */
+  tailLength: 4,
+
+  /** How much the tail narrows toward its tip. [0 … 0.95] */
+  tailNarrow: 0.75,
+
+  /** How far a blob slides, as a fraction of viewport height. Should clear
+   *  the bottom edge from wherever the keyboard sits. [0.8 … 2] */
+  fallHeight: 1.7,
+
+  /** Sideways drift while sliding, as a fraction of the key's width.
+   *  [0 … 3] — randomized per key, both directions. */
+  fallDrift: 0.6,
+
+  /** Max spin while sliding, degrees. [0 … 90] — randomized per key. */
+  fallSpin: 12,
+
+  /** Feel of the slide. [1 … 3] — 1 = constant speed, 2 = a slow start
+   *  that accelerates like a heavy drip, 3 = hangs then plunges. */
+  fallPower: 1.5,
+
+  /** Delay before the base plate starts melting, as a fraction of the melt.
+   *  [0 … 0.8] — the plate should let go after most keys have. */
+  plateDelay: 0.45,
+
+  /** How strongly the plate deforms relative to the keys. [0 … 1] */
+  plateAmount: 0.5,
+
+  /** Face subdivisions of the key / plate meshes. More = smoother drips,
+   *  more triangles. keySegments [2 … 8], plateSegments [4 … 16] */
+  keySegments: 4,
+  plateSegments: 10,
+
+  // --- Molten look ---
+  // Off by default: the glass keeps its normal look and only the shape
+  // deforms. Raise glowIntensity / the tint alpha for a hot amber glow.
+
+  /** Glow color of the molten glass. Alpha = peak glow strength. */
+  glowColor: "rgba(255, 96, 16, 0.9)",
+
+  /** Emissive intensity at full glow. [0 … 4] — 0 = none (stays glassy),
+   *  0.5 = warm, 2 = furnace. */
+  glowIntensity: 0,
+
+  /** Tint the transmission color takes on when molten. Alpha = strength,
+   *  0 = keep the glass's own color. */
+  moltenTint: "rgba(255, 120, 30, 0)",
+
+  /** Surface roughness at full melt. [0 … 0.05] — keep near 0: anything
+   *  above ~0.05 turns the glass milky in this shader. */
+  moltenRoughness: 0,
+
+  /** Wobbly-refraction strength at full melt. [0 … 1.5] */
+  moltenDistortion: 0.9,
+
+  /** Speed of that wobble. [0 … 0.6] */
+  moltenTemporalDistortion: 0.25,
+
+  /** Extra downward tilt of the whole board as it melts, radians. [0 … 0.5]
+   *  Shows more of the top face so the pooling reads against the backdrop. */
+  tiltX: 0.18,
+} as const;
+
+// ---------------------------------------------------------------------------
 // "Liquid" DOM glass (SVG displacement filter, after reactbits' GlassSurface).
 // Only used by the alternate DOM keyboard (LiquidGlassKeyboard.tsx), which is
 // currently not mounted anywhere — safe to ignore unless you bring it back.
@@ -549,4 +669,268 @@ export const GLASS_SURFACE = {
 
   /** Blend mode used when building the displacement map. */
   mixBlendMode: "difference",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Dark room (the revamp): the keyboard alone on a floor, one spotlight above.
+// Everything here is in world units — the board is ROOM.boardWidth wide and
+// the rest of the room is sized relative to that.
+// ---------------------------------------------------------------------------
+export const ROOM = {
+  /** Width of the keyboard in world units. Everything else scales off it.
+   *  [20 … 40] — only changes the relationship to the fog/room size. */
+  boardWidth: 30,
+
+  /** Fraction of the viewport width the board should span. [0.45 … 0.85] */
+  fitWidth: 0.4,
+
+  /** How the keyboard is presented on the podium. */
+  display: {
+    /** Tilt, degrees: the back edge is raised so the caps face the camera,
+     *  like a keyboard propped on a stand. 0 = flat. [0 … 25] */
+    tilt: 28,
+    /** Seconds for one full turn of the slow turntable spin. 0 disables.
+     *  [20 … 120] */
+    spinSeconds: 35,
+  },
+
+  camera: {
+    /** Vertical field of view, degrees. [25 … 50] */
+    fov: 30,
+    /** Elevation above the board, degrees. 0 = table-level, 90 = top-down.
+     *  [10 … 70] — low (~16) reads like a product shot of a pedestal. */
+    elevation: 30,
+    /** Yaw offset around the board, degrees. 0 = straight on. [-30 … 30] */
+    yaw: 0,
+    /** Point the camera looks at, relative to the podium top [x, y, z]. */
+    lookAt: [0, 3, 0] as const,
+    /** Cursor parallax: how far (degrees) the camera orbits when the
+     *  pointer reaches the viewport edge. 0 disables. [0 … 8] */
+    parallaxYaw: 4,
+    parallaxPitch: 2,
+    /** Smoothing of the parallax. [0.02 … 0.3] — lower = heavier camera. */
+    smoothing: 0.4,
+  },
+
+  /** The single spotlight. */
+  spot: {
+    /** Off: no spotlight, beam or dust — the room is lit only by the
+     *  keyboard's own glow (plateGlow) and the tiny ambient fill. */
+    enabled: false,
+    /** Height above the floor, world units. [20 … 60] — keep it above the
+     *  camera so the lamp itself stays out of frame and only the beam shows. */
+    height: 50,
+    /** Horizontal offset [x, z] from the board center. */
+    offset: [0, 0] as const,
+    /** Half-angle of the cone, radians. [0.3 … 0.7] — the pool's radius
+     *  on the floor is tan(angle) × height: 0.5 at height 34 gives ~19,
+     *  a little past the 30-wide board's corners; 0.65 lights much more
+     *  of the floor. */
+    angle: 0.3,
+    /** Edge softness. [0 … 1] */
+    penumbra: 0.9,
+    /** Brightness (candela). Physically-based falloff, so scale with the
+     *  square of height. [800 … 6000] */
+    intensity: 2000,
+    /** Light color. Neutral white for a studio look. */
+    color: "#ffffff",
+    /** Shadow map resolution. [1024 … 4096] */
+    shadowMapSize: 2048,
+    /** Shadow softness (PCFSoft radius). [1 … 6] */
+    shadowRadius: 3,
+
+    /** Visible beam (volumetric cone). */
+    beam: {
+      enabled: true,
+      /** Beam opacity. [0 … 0.6] */
+      opacity: 0.2,
+      /** How fast the beam fades along its length. [10 … 60] */
+      attenuation: 45,
+      /** Edge falloff of the cone. [2 … 12] — higher = sharper edge. */
+      anglePower: 5,
+    },
+
+    /** Dust motes drifting through the beam. */
+    dust: {
+      enabled: true,
+      /** Particle count. [0 … 1500] */
+      count: 500,
+      /** Particle size, world units. [0.03 … 0.15] */
+      size: 0.1,
+      /** Opacity. [0.1 … 1] */
+      opacity: 0.7,
+      /** Fall speed, units/second. [0.05 … 0.6] */
+      speed: 0.30,
+      /** Sideways wander. [0 … 0.5] */
+      wander: 0.25,
+    },
+  },
+
+  /** The round pedestal the keyboard is displayed on. */
+  podium: {
+    enabled: true,
+    /** Radius, world units. The 30-wide board's half-diagonal is ~15.7. */
+    radius: 19,
+    /** Height, world units. [1 … 8] */
+    height: 3.2,
+    /** Concrete grey; the top catches the light, the side falls off. */
+    color: "#3a3a3a",
+    roughness: 0.92,
+  },
+
+  room: {
+    /** Floor color. Neutral dark grey so the light pool stays colorless. */
+    floorColor: "#1a1a1a",
+    /** Floor material. Lower roughness = glossier reflection of the pool. */
+    floorRoughness: 0.8,
+    floorMetalness: 0.0,
+    /** Wall color. */
+    wallColor: "#0a0a0a",
+    /** Distance from board center to the back wall / side walls / ceiling. */
+    backWall: 40,
+    sideWall: 55,
+    ceiling: 48,
+    /** Fog: everything past `far` fades to black. */
+    fogColor: "#000000",
+    fogNear: 55,
+    fogFar: 190,
+    /** Barely-there fill so the room isn't a pure void. [0 … 0.08] */
+    ambient: 0,
+  },
+
+  /** Glass tuned for the dark room (the old GLASS.key values assume a
+   *  bright video behind the keys). Same meaning as GLASS.key. */
+  glass: {
+    key: {
+      roughness: 0,
+      /** Higher = light bends more through the cap. Water is 1.33, but the
+       *  watery *look* wants heavy bending: 1.8–2.2. [1.2 … 2.4] */
+      ior: 3,
+      thicknessFactor: 2,
+      /** Color splitting through the glass. [0 … 1.5] — the holographic
+       *  look wants a lot. */
+      chromaticAberration: 0.19,
+      anisotropicBlur: 0,
+      /** Liquid warping of what's seen through the cap. [0 … 1.5] */
+      distortion: 0.4,
+      /** Scale of the waves: small = fine ripples, large = broad slow
+       *  swells, which read as water. [0.2 … 2] */
+      distortionScale: .6,
+      /** How fast the warping flows. [0 … 0.6] */
+      temporalDistortion: 0.05,
+      /** Tint; alpha = strength. Kept light so the caps read as clear glass. */
+      color: "rgba(235, 242, 255, 0)",
+      /** Clear-coat gives the spotlight a crisp highlight on every cap.
+       *  [0 … 1] */
+      clearcoat: 0,
+      clearcoatRoughness: 0.08,
+      /** Thin-film iridescence (soap-bubble rainbow) on the surface.
+       *  [0 … 1] */
+      iridescence: 0.1,
+      /** IOR of the film. [1 … 2.33] — higher = stronger color shift. */
+      iridescenceIOR: 2,
+      /** Film thickness range, nm. Wider = more hue variation. */
+      iridescenceThicknessRange: [0, 300] as const,
+      /** Strength of the holographic reflections. [0 … 3] */
+      envMapIntensity: 0.12,
+    },
+    plate: {
+      roughness: 0,
+      ior: 1.7,
+      thicknessFactor: 0.8,
+      chromaticAberration: 0.1,
+      anisotropicBlur: 0,
+      distortion: 0.65,
+      distortionScale: 1,
+      temporalDistortion: 0.8,
+      iridescence: 0.3,
+      iridescenceIOR: 1.5,
+      iridescenceThicknessRange: [200, 800] as const,
+      envMapIntensity: 0.1,
+      /** Lightly smoked glass tray. */
+      color: "rgba(160, 172, 205, 0.12)",
+      clearcoat: 0.0,
+      clearcoatRoughness: 0.25,
+    },
+    /** Glowing spectral-flow panel under the glass plate (a thin emissive
+     *  sheet; the plate and caps refract it). */
+    plateGlow: {
+      enabled: true,
+      /** Brightness of the emitted light. [0.2 … 3] */
+      intensity: 2,
+      /** Animation speed. [0 … 1] */
+      speed: 0.55,
+      /** Zoom of the pattern: bigger = more, smaller swirls. [1 … 8] */
+      scale: 18.6,
+      /** How many rainbow cycles the field spans — the density of the
+       *  colour stripes. [2 … 16] */
+      stripes: 6,
+      /** Dark-to-bright contrast of the streaks. [0.5 … 4] — higher =
+       *  thinner bright lines on a dark ground. */
+      contrast: 14,
+      /** Elongation along the plate's length. [1 … 4] */
+      stretch: 2.5,
+      /** Colour saturation. [0 … 1] */
+      saturation: 1,
+    },
+
+    /** The colors the glass reflects (procedural env map, glass only).
+     *  Saturated warm/cool alternation gives the holographic bands. */
+    holo: {
+      colors: ["#ff8a3d", "#37c6ff", "#ff5fd2", "#ffd36a", "#4f7dff", "#7dffd8"],
+      /** How strongly the color bands show against the neutral gradient.
+       *  [0 … 1] — 1 = fully saturated bands, 0.4 = a tinted sheen. */
+      saturation: 0.15,
+      /** Soft white highlight streaks around the horizon. [0 … 8] */
+      streaks: 0,
+    },
+
+    /** Legends are lit by the spotlight; this adds self-glow so they stay
+     *  readable against the bright glass. [0 … 1] */
+    legendGlow: 2,
+    /** Pixels of legend texture per world unit. [48 … 160] */
+    legendResolution: 96,
+    /** Corner rounding of the caps, as a fraction of the cap's smaller
+     *  side. Overrides GLASS.keyRadiusFactor for the room build.
+     *  [0.02 … 0.5] — 0.05 = crisp machined edges, 0.24 = soft pillows. */
+    keyRadiusFactor: 0.05,
+    /** Corner rounding of the plate, relative to key height. [0.02 … 0.5] */
+    plateRadiusFactor: 0.08,
+
+    /** Press travel as a fraction of key height. The cap floats this far
+     *  above the plate (the switch housing fills the gap) and bottoms out
+     *  flush with it when pressed. [0.15 … 0.5] */
+    pressTravel: 0.22,
+
+    /** Keycap shaping and the parts visible inside the clear glass. */
+    detail: {
+      /** Top face size relative to the base. 1 = straight block,
+       *  0.85 = classic sculpted keycap. [0.7 … 1] */
+      taper: 0.72,
+      /** Depth of the dish scooped into the top, as a fraction of key
+       *  height. 0 = flat. [0 … 0.2] — SA-style caps sit around 0.12. */
+      dish: 0.2,
+      /** Key height as a multiple of one key unit (overrides
+       *  GLASS.keyDepthFactor here). [0.5 … 1.4] — SA-style is tall, ~1.1. */
+      height: 0.85,
+      /** Gap between caps as a fraction of a key unit (overrides
+       *  GLASS.keyGapFactor here). [0.03 … 0.2] */
+      gap: 0.0,
+      /** Show a switch housing + stem under each cap (seen through the
+       *  glass; the stem travels with the cap when pressed). Off: the caps
+       *  simply float a press-travel above the plate. */
+      switches: false,
+      /** Switch housing: a dark block on the plate. */
+      housingColor: "#1c1d22",
+      /** Housing footprint relative to the cap. [0.4 … 0.8] */
+      housingSize: 0.6,
+      /** Stem color — the accent seen through every cap. */
+      stemColor: "#e0a33b",
+      /** Stem self-glow. [0 … 1] */
+      stemGlow: 0.05,
+    },
+  },
+
+  /** Pointer cap for device-pixel-ratio: 3 render passes per frame. */
+  maxDpr: 1.,
 } as const;
