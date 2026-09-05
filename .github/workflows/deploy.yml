@@ -30,6 +30,11 @@ jobs:
       - run: npx next build
         env:
           NEXT_TELEMETRY_DISABLED: 1
+          # NEXT_PUBLIC_* is inlined at build time, so the deployed bundle
+          # ships whatever is set here. Missing secrets are not an error:
+          # the presence bar just shows you alone.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
