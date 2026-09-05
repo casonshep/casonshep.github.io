@@ -8,16 +8,20 @@ export type Avatar = { id: number; name: string };
 
 /** The pickable roster. Order is the order of the picker grid.
  *
- *  Curation rules:
- *  - Base forms only (a Pokémon that evolves *into* something), or ones
- *    that never evolve at all — no final or middle evolutions.
- *  - No Pokémon with alternate forms (so no Rotom, Deoxys, Giratina).
- *  - Dex <= 649, the limit of the animated Gen-V sprites.
- *  - Popular ones. Every starter's first stage is here, which is both the
- *    tidiest rule and the most-wanted set.
+ *  Two groups, curated differently:
  *
- *  Two deliberate exceptions, both because they are too iconic to omit:
- *  Umbreon is an Eevee evolution, and Pikachu has Pichu as a baby form. */
+ *  1. Base forms — a Pokémon that evolves *into* something, or one that
+ *     never evolves — with no alternate forms (so no Rotom, Deoxys,
+ *     Giratina). Every starter's first stage is here, which is both the
+ *     tidiest rule and the most-wanted set. Umbreon and Pikachu are
+ *     deliberate exceptions: an Eevee evolution and a Pichu evolution
+ *     respectively, both too iconic to omit.
+ *
+ *  2. All-time favourites, any evolution stage.
+ *
+ *  Both are capped at dex 649, the limit of the animated Gen-V sprites —
+ *  which is why perennial poll-toppers like Greninja (658), Sylveon (700)
+ *  and Mimikyu (778) are absent. They would need the Showdown sprite set. */
 export const ROSTER: readonly Avatar[] = [
   // Icons and the non-negotiables.
   { id: 25, name: "Pikachu" },
@@ -49,6 +53,29 @@ export const ROSTER: readonly Avatar[] = [
   { id: 495, name: "Snivy" },
   { id: 498, name: "Tepig" },
   { id: 501, name: "Oshawott" },
+  // All-time favourites, stage disregarded. Several are the evolutions of
+  // base forms already above — Growlithe/Arcanine, Magikarp/Gyarados,
+  // Dratini/Dragonite, Umbreon/Espeon.
+  { id: 3, name: "Venusaur" },
+  { id: 6, name: "Charizard" },
+  { id: 9, name: "Blastoise" },
+  { id: 59, name: "Arcanine" },
+  { id: 94, name: "Gengar" },
+  { id: 130, name: "Gyarados" },
+  { id: 143, name: "Snorlax" },
+  { id: 149, name: "Dragonite" },
+  { id: 196, name: "Espeon" },
+  { id: 248, name: "Tyranitar" },
+  { id: 249, name: "Lugia" },
+  { id: 257, name: "Blaziken" },
+  { id: 282, name: "Gardevoir" },
+  { id: 359, name: "Absol" },
+  { id: 384, name: "Rayquaza" },
+  { id: 445, name: "Garchomp" },
+  { id: 448, name: "Lucario" },
+  { id: 571, name: "Zoroark" },
+  { id: 609, name: "Chandelure" },
+  { id: 637, name: "Volcarona" },
 ];
 
 const SPRITES =
