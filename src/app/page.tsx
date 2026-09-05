@@ -1,10 +1,10 @@
-import DarkRoom from "@/components/room/DarkRoom";
+import Site from "@/components/room/Site";
 
 export default function Home() {
   return (
     <main>
       <h1 className="sr-only">Cason</h1>
-      <DarkRoom />
+      <Site />
     </main>
   );
 }

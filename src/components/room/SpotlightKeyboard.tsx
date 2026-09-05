@@ -1,6 +1,14 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { MeshTransmissionMaterial } from "@react-three/drei";
@@ -9,8 +17,10 @@ import {
   KEY_PAN,
   getSoundCategory,
   getThockEngine,
+  makeKeyboardController,
   playKeySound,
   useGlobalKeyInput,
+  type KeyboardController,
 } from "../keyboard/Keyboard";
 import { ROOM, tintStrength } from "../keyboard/visualConfig";
 import { useHoloEnv } from "./holoEnv";
@@ -257,9 +267,16 @@ function BasePlate({
 
 const SpotlightKeyboard = forwardRef<
   THREE.Group,
-  { buffer: THREE.Texture; position?: [number, number, number] }
+  {
+    buffer: THREE.Texture;
+    /** Height of the stand the keyboard rests on. */
+    standHeight?: number;
+    /** The stand itself; spins with the keyboard. */
+    stand?: ReactNode;
+    onController?: (controller: KeyboardController) => void;
+  }
 >(
-  function SpotlightKeyboard({ buffer, position }, ref) {
+  function SpotlightKeyboard({ buffer, standHeight = 0, stand, onController }, ref) {
     const board = useMemo(() => layoutBoard(ROOM.boardWidth), []);
 
     const triggers = useRef<Map<string, Trigger>>(new Map());
@@ -273,6 +290,10 @@ const SpotlightKeyboard = forwardRef<
     const releaseKey = useCallback((id: string) => triggers.current.get(id)?.release(), []);
 
     useGlobalKeyInput(pressKey, releaseKey);
+
+    useEffect(() => {
+      onController?.(makeKeyboardController(pressKey, releaseKey));
+    }, [onController, pressKey, releaseKey]);
 
     // Warm the sound engine, and resume its context on the first gesture
     // (browsers refuse audio before one).
@@ -312,9 +333,10 @@ const SpotlightKeyboard = forwardRef<
     });
 
     return (
-      <group ref={ref} position={position}>
+      <group ref={ref}>
         <group ref={spin}>
-        <group position={[0, lift, 0]} rotation={[tilt, 0, 0]}>
+        {stand}
+        <group position={[0, standHeight + lift, 0]} rotation={[tilt, 0, 0]}>
         {ROOM.glass.plateGlow.enabled && (
           <HoloPanel
             w={board.w * ROOM.board.plateWidthFactor * 0.98}

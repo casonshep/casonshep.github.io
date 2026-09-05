@@ -169,9 +169,47 @@ export const ROOM = {
     },
   },
 
+  /** Identity-disc stand under the keyboard (Tron). Replaces the podium. */
+  disc: {
+    enabled: true,
+    /** Outer radius, world units. The board is 30 wide, so ~13 tucks the
+     *  disc mostly under it as a base. [10 … 22] */
+    radius: 13,
+    /** Radius of the centre hole. [3 … 0.6 × radius] */
+    holeRadius: 5.4,
+    /** Thickness. [0.8 … 2.5] */
+    thickness: 1.25,
+    /** Edge chamfer. [0.05 … 0.3] */
+    chamfer: 0.16,
+    /** Body: dark glossy plastic. */
+    bodyColor: "#1b1c21",
+    bodyRoughness: 0.32,
+    /** Clear-coat gloss on the body. [0 … 1] */
+    clearcoat: 0.7,
+    /** Reflection strength (same holographic env as the glass). [0 … 1] */
+    envMapIntensity: 0.35,
+    /** LED colour and emissive strength (tone-mapped: >1 blooms softly). */
+    ledColor: "#ff4fc3",
+    ledIntensity: 2.6,
+    /** Radius and width of the LED groove in the top face. */
+    bandRadius: 9.2,
+    bandWidth: 0.42,
+    /** Depth of that groove. [0.05 … 0.4] */
+    grooveDepth: 0.16,
+    /** How many arcs the ring is split into, and the gap between them. */
+    segments: 4,
+    gapDegrees: 10,
+    /** Rim slot: height as a fraction of thickness, and its depth. */
+    rimBand: 0.34,
+    slotDepth: 0.14,
+    /** How much the LEDs light the keyboard above. 0 disables. [0 … 200] */
+    lightIntensity: 30,
+  },
+
+
   /** The round pedestal the keyboard is displayed on. */
   podium: {
-    enabled: true,
+    enabled: false,
     /** Radius, world units. The 30-wide board's half-diagonal is ~15.7. */
     radius: 19,
     /** Height, world units. [1 … 8] */
@@ -182,6 +220,9 @@ export const ROOM = {
   },
 
   room: {
+    /** Render the floor, walls and ceiling. Off (the default with the 2D
+     *  skyline) leaves the podium floating in front of the backdrop. */
+    geometry: false,
     /** Floor color. Neutral dark grey so the light pool stays colorless. */
     floorColor: "#1a1a1a",
     /** Floor material. Lower roughness = glossier reflection of the pool. */
@@ -329,6 +370,89 @@ export const ROOM = {
       /** Stem self-glow. [0 … 1] */
       stemGlow: 0.05,
     },
+  },
+
+  /** ASCII backdrop, drawn flat across the screen behind everything
+   *  (locked to the camera — no perspective). A synthwave/Tron horizon:
+   *  striped neon sun, city silhouette with flickering windows, a glowing
+   *  grid floor rushing toward the viewer, and — like a dot-matrix poster —
+   *  sparse grain texturing the whole field. Rendered as glyphs on the GPU. */
+  skyline: {
+    enabled: true,
+    /** What to draw: a raymarched object shaded into glyphs, or the
+     *  synthwave landscape.
+     *  "disc"   — Tron identity disc, tilted, grooved rings, bright band.
+     *  "gyroid" — a sphere carved into a gyroid lattice.
+     *  "landscape" — sun, city and grid horizon. */
+    scene: "" as "disc" | "gyroid" | "landscape",
+    /** Object size as a fraction of screen height. [0.3 … 1.2] */
+    objectScale: 0.72,
+    /** Object centre height on screen (0 bottom … 1 top). [0.3 … 0.7] */
+    objectY: 0.56,
+    /** Object tilt toward the viewer, degrees. [0 … 80] */
+    objectTilt: 58,
+    /** Object spin about its axis, degrees (static unless animate). */
+    objectSpin: 20,
+    /** Animate (grid rush, drift, flicker, twinkle). Off = a still image. */
+    animate: false,
+    /** Overall brightness. [0.2 … 1.5] */
+    brightness: 0.8,
+    /** Glyph rows down the screen — fewer = chunkier ASCII. [30 … 120] */
+    rows: 96,
+    /** Glyph ramp, darkest → brightest. Any length ≥ 2. */
+    ramp: " .'`^\",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
+    /** Screen height (0 = bottom) where the horizon sits. [0.3 … 0.6] */
+    horizon: 0.44,
+    /** Sun radius as a fraction of screen height. 0 hides it. [0 … 0.35] */
+    sunRadius: 0.2,
+    /** Grain: fraction of cells showing a faint random dot. [0 … 0.25] */
+    grain: 0.07,
+    /** How fast the grid floor rushes toward the viewer. [0 … 2] */
+    gridSpeed: 0.55,
+    /** Grid line density. [3 … 12] */
+    gridDensity: 6,
+    /** Sideways drift of the city, screen-widths per second. [0 … 0.05] */
+    scrollSpeed: 0.006,
+    /** Window flicker rate. [0 … 3] */
+    flicker: 0.8,
+    /** Palette. Set mono: true to render everything in `monoColor`. */
+    mono: true,
+    monoColor: "#d2dbe0",
+    colors: {
+      grid: "#19e6ff",
+      horizonGlow: "#7ff6ff",
+      sunTop: "#ff3ec8",
+      sunBottom: "#ff8a1f",
+      building: "#0d3540",
+      buildingNear: "#071d24",
+      window: "#9ff8ff",
+      star: "#86a9b8",
+      grain: "#3c5560",
+    },
+    /** Random seed — change for a different city. */
+    seed: 7,
+  },
+
+
+
+  /** Top-right nav, typed in one character at a time on load — the
+   *  matching keys press on the 3D keyboard as it types. */
+  nav: {
+    items: [
+      { label: "me", href: "#me" },
+      { label: "projects", href: "#projects" },
+      { label: "art", href: "#art" },
+    ] as readonly { label: string; href: string }[],
+    /** Delay before typing starts, ms. [0 … 3000] */
+    startDelayMs: 900,
+    /** Time per character, ms. [40 … 200] */
+    charMs: 95,
+    /** Small random jitter added per character so it feels human. [0 … 80] */
+    jitterMs: 45,
+    /** Pause between items, ms. [0 … 1500] */
+    gapMs: 420,
+    /** CSS font size. */
+    fontSize: "clamp(0.8rem, 1.1vw, 0.95rem)",
   },
 
   /** Pointer cap for device-pixel-ratio: 3 render passes per frame. */

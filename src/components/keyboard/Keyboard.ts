@@ -16,6 +16,14 @@ export interface KeyConfig {
 type KeyRow = KeyConfig[];
 type SoundCategory = "normal" | "spacebar" | "modifier";
 
+export interface KeyboardController {
+  /** Visually press (and sound) the key for a character, auto-releasing it. */
+  typeChar: (char: string) => void;
+  /** Resume the audio context. Must be called from a user-gesture handler
+   *  for browsers to allow sound. */
+  unlockAudio: () => void;
+}
+
 export const ROWS: KeyRow[] = [
   [
     { id: "esc", label: "Esc", small: true, align: "left" },
@@ -164,6 +172,25 @@ export const ALL_KEYS_BY_ID: Record<string, KeyConfig> = (() => {
   return map;
 })();
 
+
+// Character → key (plus whether Shift is held), derived from the key legends.
+const CHAR_TO_KEY: Record<string, { id: string; shift?: boolean }> = (() => {
+  const map: Record<string, { id: string; shift?: boolean }> = {};
+  for (const row of ROWS) {
+    for (const key of row) {
+      if (key.id === "space") {
+        map[" "] = { id: key.id };
+        continue;
+      }
+      if (key.label.length !== 1) continue;
+      const lower = key.label.toLowerCase();
+      map[lower] = { id: key.id };
+      if (key.label !== lower) map[key.label] = { id: key.id, shift: true };
+      if (key.shiftLabel) map[key.shiftLabel] = { id: key.id, shift: true };
+    }
+  }
+  return map;
+})();
 
 const MODIFIER_KEY_IDS = new Set([
   "esc",
@@ -472,6 +499,37 @@ export function playKeySound(
     };
     src.start(now);
   });
+}
+
+const PROGRAMMATIC_HOLD_MS = 70;
+
+/** The imperative API a parent uses to drive the keyboard via press/release
+ *  callbacks — used by the typed nav. */
+export function makeKeyboardController(
+  pressKey: (id: string) => void,
+  releaseKey: (id: string) => void,
+): KeyboardController {
+  return {
+    typeChar: (char: string) => {
+      const mapping = CHAR_TO_KEY[char];
+      if (!mapping) return;
+      const ids = mapping.shift ? ["lshift", mapping.id] : [mapping.id];
+      for (const kid of ids) pressKey(kid);
+      playKeySound(
+        getSoundCategory(mapping.id),
+        !!ALL_KEYS_BY_ID[mapping.id]?.muted,
+        KEY_PAN[mapping.id] ?? 0,
+      );
+      window.setTimeout(() => {
+        for (const kid of ids) releaseKey(kid);
+      }, PROGRAMMATIC_HOLD_MS);
+    },
+    unlockAudio: () => {
+      void getThockEngine().then((engine) => {
+        if (engine && engine.ctx.state === "suspended") void engine.ctx.resume();
+      });
+    },
+  };
 }
 
 const MODIFIER_FAMILIES: Array<{ modifier: string; ids: string[] }> = [

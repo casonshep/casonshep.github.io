@@ -6,6 +6,9 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { SpotLight, useDepthBuffer, useFBO } from "@react-three/drei";
 import { ROOM } from "../keyboard/visualConfig";
 import SpotlightKeyboard, { GLASS_FLAG } from "./SpotlightKeyboard";
+import AsciiSkyline from "./AsciiSkyline";
+import IdentityDisc from "./IdentityDisc";
+import type { KeyboardController } from "../keyboard/Keyboard";
 
 // A dark room. The keyboard sits on the floor under a single spotlight;
 // nothing else is lit. Knobs live in visualConfig.ts under ROOM.
@@ -32,6 +35,13 @@ function usePrefersReducedMotion() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
   );
+}
+
+/** Height of whatever the keyboard rests on. */
+function standHeight() {
+  if (ROOM.disc.enabled) return ROOM.disc.thickness;
+  if (ROOM.podium.enabled) return ROOM.podium.height;
+  return 0;
 }
 
 /** Floor + walls. Matte and dark: only the spotlight pool reads. */
@@ -208,7 +218,7 @@ function CameraRig() {
   const reduced = usePrefersReducedMotion();
   const pointer = useRef({ x: 0, y: 0 });
   const orbit = useRef({ yaw: 0, pitch: 0 });
-  const podiumTop = ROOM.podium.enabled ? ROOM.podium.height : 0;
+  const podiumTop = standHeight();
   const target = useMemo(
     () => new THREE.Vector3(C.lookAt[0], C.lookAt[1] + podiumTop, C.lookAt[2]),
     [C.lookAt, podiumTop],
@@ -271,7 +281,7 @@ function CameraRig() {
 
 /** Renders the room (glass hidden) into the glass refraction buffer once
  *  per frame, so the ~70 transmission materials share one capture. */
-function Scene() {
+function Scene({ onController }: { onController?: (c: KeyboardController) => void }) {
   // Half-float so the spotlit podium keeps its brightness through the
   // glass: an 8-bit capture clips the pool to flat grey, and every cap
   // then shows that grey instead of a bright refracted highlight.
@@ -303,23 +313,33 @@ function Scene() {
   });
 
   const R = ROOM.room;
-  const podiumTop = ROOM.podium.enabled ? ROOM.podium.height : 0;
   return (
     <>
       <color attach="background" args={[R.fogColor]} />
       <fog attach="fog" args={[R.fogColor, R.fogNear, R.fogFar]} />
       <ambientLight intensity={R.ambient} />
       <CameraRig />
-      <Room />
+      {ROOM.skyline.enabled && <AsciiSkyline />}
+      {R.geometry && <Room />}
       {ROOM.podium.enabled && <Podium />}
       {ROOM.spot.enabled && <Overhead />}
       {ROOM.spot.enabled && ROOM.spot.dust.enabled && <Dust />}
-      <SpotlightKeyboard ref={keyboard} buffer={buffer.texture} position={[0, podiumTop, 0]} />
+      <SpotlightKeyboard
+        ref={keyboard}
+        buffer={buffer.texture}
+        standHeight={standHeight()}
+        stand={ROOM.disc.enabled ? <IdentityDisc /> : undefined}
+        onController={onController}
+      />
     </>
   );
 }
 
-export default function DarkRoom() {
+export default function DarkRoom({
+  onController,
+}: {
+  onController?: (controller: KeyboardController) => void;
+}) {
   return (
     <div className="fixed inset-0" style={{ background: ROOM.room.fogColor }}>
       <Canvas
@@ -333,7 +353,7 @@ export default function DarkRoom() {
         }}
       >
         <Suspense fallback={null}>
-          <Scene />
+          <Scene onController={onController} />
         </Suspense>
       </Canvas>
     </div>
