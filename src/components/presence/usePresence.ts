@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createClient,
   type RealtimeChannel,
@@ -149,7 +149,15 @@ export function usePresence(): Presence {
   const [connected, setConnected] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const clearTimer = useRef(0);
+  // SUBSCRIBED can arrive long after the effect that registered it, by
+  // which time the session may have moved on. Tracking the captured value
+  // would publish a stale avatar or name, so read the latest through here.
+  const sessionRef = useRef(session);
   const avatarId = session?.avatarId ?? null;
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -201,7 +209,7 @@ export function usePresence(): Presence {
     channel.subscribe((status) => {
       const live = status === "SUBSCRIBED";
       setConnected(live);
-      if (live) channel.track(session);
+      if (live && sessionRef.current) channel.track(sessionRef.current);
     });
 
     return () => {
@@ -257,10 +265,19 @@ export function usePresence(): Presence {
     }, MESSAGE_TTL);
   }, []);
 
-  // Unconfigured, or not connected yet: show just this tab, so the bar and
-  // the picker are still usable on localhost.
-  const resolved =
-    peers.length > 0 || !session ? peers : [{ key: me, ...session }];
+  // Our own row always comes from local state, never from the echoed
+  // presence snapshot. Rendering ourselves out of `peers` meant every
+  // avatar pick, rename and message waited on a server round trip before
+  // it showed — and never appeared at all if that echo was dropped. This
+  // also covers being unconfigured or not yet subscribed, where no
+  // snapshot arrives in the first place.
+  const resolved = useMemo(() => {
+    if (!session) return peers;
+    const mine: Peer = { key: me, ...session };
+    return [...peers.filter((p) => p.key !== me), mine].sort(
+      (a, b) => a.joinedAt - b.joinedAt || a.key.localeCompare(b.key),
+    );
+  }, [peers, session, me]);
 
   return {
     peers: resolved,
