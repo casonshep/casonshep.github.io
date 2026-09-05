@@ -12,7 +12,7 @@ import {
   playKeySound,
   useGlobalKeyInput,
 } from "../keyboard/Keyboard";
-import { GLASS, ROOM, tintStrength } from "../keyboard/visualConfig";
+import { ROOM, tintStrength } from "../keyboard/visualConfig";
 import { useHoloEnv } from "./holoEnv";
 import HoloPanel from "./HoloPanel";
 import {
@@ -88,7 +88,7 @@ function GlassKey({
     const g = group.current;
     if (!g) return;
     const target = pressed.current ? -depth * ROOM.glass.pressTravel : 0;
-    g.position.y += (target - g.position.y) * Math.min(1, dt * GLASS.pressSpeed);
+    g.position.y += (target - g.position.y) * Math.min(1, dt * ROOM.board.pressSpeed);
   });
 
   const legend = useMemo(
@@ -219,9 +219,9 @@ function BasePlate({
   envMap: THREE.Texture;
 }) {
   const P = ROOM.glass.plate;
-  const plateW = w * GLASS.basePlate.widthFactor;
-  const plateH = h * GLASS.basePlate.heightFactor;
-  const plateD = depth * GLASS.basePlate.depthScale;
+  const plateW = w * ROOM.board.plateWidthFactor;
+  const plateH = h * ROOM.board.plateHeightFactor;
+  const plateD = depth * ROOM.board.plateDepthScale;
   const geometry = useRoundedBox(plateW, plateD, plateH, depth * ROOM.glass.plateRadiusFactor);
   return (
     <mesh
@@ -260,14 +260,7 @@ const SpotlightKeyboard = forwardRef<
   { buffer: THREE.Texture; position?: [number, number, number] }
 >(
   function SpotlightKeyboard({ buffer, position }, ref) {
-    const board = useMemo(
-      () =>
-        layoutBoard(ROOM.boardWidth, {
-          gapFactor: ROOM.glass.detail.gap,
-          depthFactor: ROOM.glass.detail.height,
-        }),
-      [],
-    );
+    const board = useMemo(() => layoutBoard(ROOM.boardWidth), []);
 
     const triggers = useRef<Map<string, Trigger>>(new Map());
     const register = useCallback((id: string, trigger: Trigger) => {
@@ -299,7 +292,7 @@ const SpotlightKeyboard = forwardRef<
     }, []);
 
     // Keys sit on top of the plate.
-    const plateD = board.depth * GLASS.basePlate.depthScale;
+    const plateD = board.depth * ROOM.board.plateDepthScale;
 
     // Display pose: tilted back, and lifted so the front edge still rests on
     // the podium; the whole thing turns slowly like a turntable.
@@ -324,8 +317,8 @@ const SpotlightKeyboard = forwardRef<
         <group position={[0, lift, 0]} rotation={[tilt, 0, 0]}>
         {ROOM.glass.plateGlow.enabled && (
           <HoloPanel
-            w={board.w * GLASS.basePlate.widthFactor * 0.98}
-            h={board.h * GLASS.basePlate.heightFactor * 0.98}
+            w={board.w * ROOM.board.plateWidthFactor * 0.98}
+            h={board.h * ROOM.board.plateHeightFactor * 0.98}
             y={0.02}
           />
         )}

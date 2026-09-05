@@ -1,5 +1,5 @@
 // ============================================================================
-// visualConfig.ts — every knob for the landing page's look, in one place.
+// visualConfig.ts — every knob for the site's look, in one place.
 //
 // Edit and save; the dev server hot-reloads.
 // Colors: use "rgba(r,g,b,a)" (or hex) everywhere. For the glass tints the
@@ -8,13 +8,8 @@
 // Each knob lists a practical range as [min … max] — values outside won't
 // break anything, they just stop looking better.
 //
-// Sections: INTRO (typing), BACKDROP (ascii video + clip morphs), GLASS
-// (3D keyboard materials/lights), ASSEMBLY (scroll-scrubbed build),
-// ROOM (the dark-room revamp: camera, spotlight, room, room-glass),
-// MELT (scroll-scrubbed molten-glass exit), GLASS_SURFACE (unused
-// alternate DOM-glass keyboard variant).
-// (The charcoal DOM keyboard's colors live in Keyboard.tsx under
-// KEYCAP_THEMES / CASE_THEMES if you want to restyle that variant too.)
+// The whole site is one scene (ROOM): the glass keyboard on a podium in a
+// dark room, lit by its own glow (and optionally a spotlight).
 // ============================================================================
 
 /** Parses "#rgb", "#rrggbb", "rgb(...)" or "rgba(...)" → [r,g,b,a] in 0..1. */
@@ -57,629 +52,37 @@ export function tintStrength(color: string): [number, number, number] {
   return [1 + (r - 1) * a, 1 + (g - 1) * a, 1 + (b - 1) * a];
 }
 
-// ---------------------------------------------------------------------------
-// Intro typing
-// ---------------------------------------------------------------------------
-export const INTRO = {
-  /** The sentence the keyboard types out. Supported characters: anything on
-   *  the keyboard (letters get Shift for capitals). */
-  sentence: "hi, im cason. I build things and do stuff",
-
-  /** Typing is scrubbed by scroll, like the assembly: once the keyboard
-   *  has built (ASSEMBLY.scrollRange), this much additional scroll (as a
-   *  fraction of viewport height) types out the sentence and links —
-   *  scrolling back up deletes them again. [0.3 … 2] */
-  scrollRange: 0.8,
-
-
-  /** Font size of the typed sentence. CSS clamp string. */
-  fontSize: "clamp(1.4rem, 4vw, 2.6rem)",
-
-  /** Font size of the link labels below the sentence. CSS clamp string. */
-  linkFontSize: "clamp(0.78rem, 1.2vw, 0.9rem)",
-} as const;
 
 // ---------------------------------------------------------------------------
-// Video backdrop (the ascii effect)
-// ---------------------------------------------------------------------------
-export const BACKDROP = {
-  /** Effect frame rate. [8 … 30] — 8-12 feels like a flipbook, 15-24 retro
-   *  film, 30 smooth but costs more CPU. */
-  targetFps: 20,
-
-  /** How many viewport-heights the video's frame spans. [1 … 3]
-   *  1 fills the viewport exactly. Only matters beyond 1 when scrollPan > 0
-   *  (the extra length is what scrolling pans through). */
-  videoScreens: 1,
-
-  /** How much the video pans with page scroll. [0 … 1]
-   *  0 = static (fixed in place), 1 = scrolls 1:1 with the page,
-   *  in between = parallax. With > 0, raise videoScreens to
-   *  ≥ 1 + ASSEMBLY.scrollRange so the pan never runs out of frame. */
-  scrollPan: 0,
-
-  /** Vertical drop of the video, as a fraction of viewport height.
-   *  [-1 … 1] — 0 = top-aligned with the viewport, 0.1 = nudged down 10%,
-   *  negative = raised. Cells outside the frame render black. */
-  videoOffsetY: 0,
-
-  /** Background clips, cycled with an ascii crossfade morph. Drop files
-   *  into /public/media and list them here (e.g. "/media/clip2.mp4").
-   *  A single entry just loops — no cycling.
-   *  The -bounce files have the boomerang (forward + reversed) baked in —
-   *  regenerate one for a new clip with:
-   *    ./scripts/make-boomerang.sh public/media/<clip>.mp4 */
-  videoSources: [
-    "/media/cow-bounce.mp4",
-    "/media/harley-bounce.mp4",
-    "/media/slayter-bounce.mp4",
-  ] as readonly string[],
-
-  /** Seconds each clip plays before morphing to the next. [5 … 120] */
-  videoCycleSeconds: 10,
-
-  /** Duration of the morph crossfade between clips, seconds. [0.5 … 5] */
-  videoMorphSeconds: 1.5,
-
-  /** Peak blur laid over the ascii canvas mid-morph, px. [0 … 24]
-   *  Ramps up and back down across the morph. 0 = no blur: the clips only
-   *  crossfade inside the character grid (pure ascii glyph morph). */
-  videoMorphBlurPx: 20,
-
-  /** Cursor ripple (after reactbits' RippleDistortion): pointer movement
-   *  stamps soft waves that grow and fade into a displacement field; a
-   *  shader smears the ascii "water" along it with swirl + chromatic
-   *  dispersion, and where the water is displaced hard the raw HD video
-   *  shows through. Runs at full frame rate on the GPU; sits over the
-   *  ascii, under all the glass. */
-  cursorRipple: {
-    /** Max water displacement, px. [0 … 200] 0 disables. */
-    strength: 90,
-    /** Diameter of each stamped wave, px. [60 … 400] */
-    brushSize: 150,
-    /** Ring crests inside each wave. [1 … 8] */
-    rings: 4,
-    /** Swirl: how much the push direction rotates with intensity. [0 … 2] */
-    swirl: 1,
-    /** How far each wave expands from its stamped size. [1 … 12] */
-    spread: 7.75,
-    /** Seconds a wave takes to dissolve. [0.5 … 8] */
-    fade: 3,
-    /** Min cursor travel between wave stamps, px. [4 … 60]
-     *  Smaller = denser, soupier trail (more waves alive at once). */
-    spacing: 15,
-    /** Chromatic dispersion: RGB split along the push. [0 … 1] */
-    dispersion: 0.5,
-    /** How strongly hard-displaced water opens to the HD video. [0 … 1]
-     *  0 = never reveal (pure ripple), 1 = full clean video in the wake. */
-    reveal: 0.8,
-  },
-
-  /** Brightness lift applied to the (dark) footage before mapping to glyphs.
-   *  liftGain [0.8 … 2.5]: >1 brightens everything; 2+ blows out highlights.
-   *  liftGamma [0.5 … 1.2]: <1 lifts shadows (reveals dark detail),
-   *  1 = untouched, >1 crushes shadows for a high-contrast look. */
-  liftGain: 1.8,
-  liftGamma: .7,
-
-  /** ASCII: font size in px (cell size follows from it).
-   *  [8 … 24] — 8-10 is fine detail (almost looks like an image, more CPU),
-   *  14-18 clearly reads as text, 20+ is chunky abstract blocks. */
-  asciiFontPx: 16,
-
-  /** ASCII: characters from darkest to brightest. Any length ≥ 2.
-   *  More characters = smoother tonal gradient; denser glyphs (#, @, $)
-   *  at the end read brighter. Leading space = pure black cells. */
-  asciiRamp: " ·.:~=+$$$$",
-
-  /** Video crop: fraction of the frame to trim from the top. [0 … 0.4]
-   *  0 = no trim, 0.2 = chop the top 20% of the video frame. */
-  videoCropTop: .2,
-
-  /** Video crop: fraction of the frame to trim from the bottom. [0 … 0.4]
-   *  0 = no trim, 0.2 = chop the bottom 20% of the video frame. */
-  videoCropBottom: 0.33,
-
-  /** Video fit: 0 = contain (full frame, $ filler on sides),
-   *  1 = cover (fills viewport, edges cropped). [0 … 1]
-   *  0.5 is a good middle ground for portrait video on landscape screens. */
-  videoFit: 1,
-
-  /** Fill color for the side gaps when videoFit < 1.
-   *  "auto" = the most common color along the current frame's edges, so the
-   *  fill blends with the footage and follows it as clips morph. Or any
-   *  fixed CSS color ("#ffffff" = bright $ fill, "#000" = empty). */
-  videoFillColor: "auto" as string,
-
-  /** ASCII: canvas filter applied when tinting glyphs with video color.
-   *  brightness [1 … 2.5], saturate [1 … 2.5] — push brightness when the
-   *  footage is dark, saturation to exaggerate the stage-light colors. */
-  asciiTintFilter: "brightness(1.7) saturate(1.9)",
-
-  /** CSS background of the fixed vignette layer over the backdrop, keeping
-   *  the hero text readable. Any CSS gradient; "none" disables it. */
-  vignette:
-    "radial-gradient(80% 70% at 50% 55%, rgba(0,0,0,0.38), rgba(0,0,0,0.14) 60%, rgba(0,0,0,0) 100%)",
-} as const;
-
-// ---------------------------------------------------------------------------
-// 3D glass keyboard
-// ---------------------------------------------------------------------------
-export const GLASS = {
-  /** Width : height ratio of the keyboard's footprint on the page.
-   *  Wider (e.g. "15 / 4") = flatter board, narrower (e.g. "15 / 5.5")
-   *  = taller keys. */
-  boardAspect: "15 / 5.6",
-
-  /** Backward tilt of the whole board, radians. [-0.5 … 0]
-   *  0 = viewed dead-on (depth invisible), -0.15 subtle, -0.3 strong
-   *  perspective, past -0.45 the top row starts hiding the row behind it. */
-  tiltX: -0.99,
-
-  /** Key thickness as a fraction of one key-unit width. [0.3 … 1.5]
-   *  0.3-0.5 = low-profile laptop keys, 0.8-1.2 = chunky mechanical,
-   *  1.5 = novelty ice cubes. */
-  keyDepthFactor: 1,
-
-  /** Gap between keys as a fraction of one key-unit width. [0.04 … 0.25]
-   *  0.04 = nearly touching, 0.1 = classic keyboard, 0.2+ = floating tiles. */
-  keyGapFactor: 0.0,
-
-  /** Keycap corner radius as a fraction of the key's smaller side.
-   *  [0.05 … 0.5] — 0.05 = sharp slabs, 0.2 = softened squares,
-   *  0.5 = fully pill-shaped. */
-  keyRadiusFactor: 0.04,
-
-  /** How far a pressed key sinks, as a fraction of key depth. [0.2 … 0.9]
-   *  0.2 = shallow tap, 0.5 = satisfying travel, 0.9 = nearly bottoms out. */
-  pressTravelFactor: 0.6,
-
-  /** Press animation speed (higher = snappier). [8 … 40]
-   *  8-12 = soft/mushy, 20-25 = mechanical click, 40 = instant. */
-  pressSpeed: 26,
-
-  /** Keycap glass material (drei MeshTransmissionMaterial props). */
-  key: {
-    /** Surface polish. [0 … 0.6] — 0 = polished clear glass, 0.1-0.2 =
-     *  slightly satin, 0.3-0.5 = frosted (scatters reflections and the
-     *  see-through image), 0.6+ = opaque-ish milk glass. */
-    roughness: 0,
-
-    /** Index of refraction: how much light BENDS through the glass.
-     *  [1 … 2.4] — 1 = no bending at all (invisible glass), 1.2 = subtle,
-     *  1.5 = realistic glass, 2 + = dense crystal/diamond magnification.
-     *  This is the main "how glassy" knob. */
-    ior: 9,
-
-    /** RGB fringe at refracted edges (lens rainbow). [0 … 0.3]
-     *  0 = clean, 0.03-0.06 = subtle realism, 0.1-0.2 = stylized prism,
-     *  0.3 = broken projector. */
-    chromaticAberration: 2,
-
-    /** Blur of whatever is seen through the glass. [0 … 2]
-     *  0 = perfectly sharp, 0.3-0.7 = light frost, 1-1.5 = heavy frost,
-     *  2 = background reduced to colored glow. */
-    anisotropicBlur: 0,
-
-    /** Wavy warping of the refracted image (hand-blown glass). [0 … 1.5]
-     *  0 = optically perfect, 0.1-0.3 = organic imperfection,
-     *  0.6-1 = obviously wavy, 1.5 = funhouse mirror. */
-    distortion: .6,
-
-    /** Size of those waves. [0.1 … 2] — 0.1-0.3 = fine ripple texture,
-     *  0.5-1 = broad undulations, 2 = one slow wave across the key. */
-    distortionScale: 0.05,
-
-    /** Animates the distortion over time. [0 … 0.5] — 0 = frozen,
-     *  0.05-0.1 = barely-alive shimmer, 0.2-0.4 = heat-haze wobble,
-     *  0.5 = actively liquid. */
-    temporalDistortion: .1,
-
-    /** Tint multiplied over everything seen through the glass — can only
-     *  darken/tint, never brighten. Lighter colors = clearer glass;
-     *  the alpha channel is tint strength (0 = untinted). */
-    color: "rgba(174, 189, 242, 1)",
-
-    /** Refraction thickness as a fraction of key depth. [0.3 … 2]
-     *  Higher = background appears more offset/magnified through the key.
-     *  Has little effect while ior is near 1. */
-    thicknessFactor: .0,
-  },
-
-  /** Frosted base plate behind the keys. Same knobs and ranges as `key`;
-   *  higher roughness/blur here reads as a frosted tray the clear keys
-   *  float on. */
-  basePlate: {
-    roughness: 0,
-    ior: 11,
-    chromaticAberration: 0.2,
-    anisotropicBlur: 1.1,
-    color: "rgba(143, 161, 221, 1)",
-    /** Refraction thickness as a fraction of key depth. [0.3 … 2] */
-    thicknessFactor: 0.8,
-
-    // --- Geometry (relative to the key grid) ---
-
-    /** Plate width as a fraction of the key grid's width. [1 … 1.2] */
-    widthFactor: 1.03,
-    /** Plate height as a fraction of the key grid's height. [1 … 1.2] */
-    heightFactor: 1.06,
-    /** Plate thickness as a fraction of key depth. [0.2 … 1.5] */
-    depthScale: 0.5,
-    /** Plate corner radius as a fraction of key depth. [0.1 … 0.5] */
-    radiusFactor: 0.3,
-    /** How far behind the keys the plate sits, as a fraction of key depth.
-     *  [0.4 … 1.5] — larger = a visible air gap under floating keys. */
-    zOffsetFactor: 0.6,
-  },
-
-  /** Glass slab behind the typed sentence. Same knobs and ranges as `key`. */
-  textSlab: {
-    /** Surface polish. [0 … 0.6] */
-    roughness: .05,
-
-    /** Index of refraction. [1 … 2.4] */
-    ior: 9,
-
-    /** RGB fringe at refracted edges. [0 … 0.3] */
-    chromaticAberration: 0.1,
-
-    /** Blur of whatever is seen through the glass. [0 … 2] */
-    anisotropicBlur: 2,
-
-    /** Wavy warping of the refracted image. [0 … 1.5] */
-    distortion: .5,
-
-    /** Size of those waves. [0.1 … 2] */
-    distortionScale: .005,
-
-    /** Animates the distortion over time. [0 … 0.5] */
-    temporalDistortion: 0,
-
-    /** Tint color — lighter = clearer glass. Alpha = tint strength. */
-    color: "rgba(89, 91, 226, 0.86)",
-
-    /** Refraction (optical) thickness, px. [4 … 40] */
-    thickness: 10,
-
-    /** Physical depth of the slab geometry, px. [6 … 30] */
-    depth: 10,
-
-    /** Corner radius of the slab, px. [2 … 20] */
-    radius: 40.
-  },
-
-  /** Glass slabs behind the link labels (github/linkedin/email).
-   *  Same knobs as textSlab. Set to null to disable link glass. */
-  linkSlab: {
-    /** Surface polish. [0 … 0.6] */
-    roughness: 0,
-
-    /** Index of refraction. [1 … 2.4] */
-    ior: 0,
-
-    /** RGB fringe at refracted edges. [0 … 0.3] */
-    chromaticAberration: 0.34,
-
-    /** Blur of whatever is seen through the glass. [0 … 2] */
-    anisotropicBlur: 1.0,
-
-    /** Wavy warping of the refracted image. [0 … 1.5] */
-    distortion: 0,
-
-    /** Size of those waves. [0.1 … 2] */
-    distortionScale: 0.05,
-
-    /** Animates the distortion over time. [0 … 0.5] */
-    temporalDistortion: 0,
-
-    /** Tint color — lighter = clearer glass. Alpha = tint strength. */
-    color: "rgb(0, 0, 0)",
-
-    /** Refraction (optical) thickness, px. [4 … 40] */
-    thickness: 3,
-
-    /** Physical depth of the slab geometry, px. [6 … 30] */
-    depth: 10,
-
-    /** Corner radius of the slab, px. [2 … 20] */
-    radius: 15,
-  },
-
-  /** Key legends (labels drawn onto the keycaps).
-   *  ink = main labels, soft = the small shift-symbols. Adjust the alpha
-   *  (last rgba number) to fade legends into the glass. */
-  legend: {
-    ink: "rgba(255,255,255,0.92)",
-    soft: "rgba(255,255,255,0.5)",
-    /** Main label size as a fraction of key height. [0.25 … 0.6] */
-    mainScale: 0.42,
-    /** Size of wide-key labels (Shift, Enter, …), fraction of key height.
-     *  [0.2 … 0.45] */
-    smallScale: 0.3,
-    /** Size of the little shift-symbols (!, @, …), fraction of key height.
-     *  [0.15 … 0.35] */
-    shiftScale: 0.22,
-  },
-
-  /** Cursor-tracking tilt applied to the keyboard and glass slabs. */
-  cursorTilt: {
-    /** Max tilt angle for the keyboard, radians. [0 … 0.2]
-     *  0.06 = subtle, 0.1 = noticeable, 0.15 = dramatic. */
-    strength: 0.12,
-    /** Smoothing factor per frame at 60fps. [0.02 … 0.2]
-     *  Lower = smoother/laggier, higher = more responsive. */
-    smoothing: 0.08,
-    /** Tilt multiplier for text/link slabs relative to keyboard. [0 … 1] */
-    slabFactor: 0.5,
-  },
-
-  /** Strength of the environment HDR reflections on the glass.
-   *  [0 … 1.5] — 0 = no specular streaks at all (glass goes invisible over
-   *  dark footage), 0.3-0.7 = believable sheen, 1+ = showroom lighting. */
-  envIntensity: .1,
-
-  /** Which HDR environment provides those reflections. The streaks' shape
-   *  and color come from this. */
-  envPreset: "forest" as
-    | "city" | "sunset" | "dawn" | "night" | "warehouse"
-    | "forest" | "apartment" | "studio" | "lobby" | "park",
-
-  /** Scene lights. */
-  lights: {
-    /** Ambient fill intensity. [0 … 2] */
-    ambient: 0.8,
-    /** Key light intensity. [0 … 3] — drives the bright top-edge specular. */
-    directional: 1.0,
-    /** Key light position [x, y, z] in px-ish scene units. Move it to move
-     *  the highlights (e.g. negative x = light from the left). */
-    directionalPosition: [200, 400, 600] as readonly [number, number, number],
-  },
-
-  /** Render resolution cap as a devicePixelRatio clamp. [1 … 2]
-   *  Higher = crisper glass on hi-dpi screens, at real GPU cost. */
-  maxDpr: 1.6,
-} as const;
-
-// ---------------------------------------------------------------------------
-// Assembly animation, scrubbed by scroll: the keyboard builds itself as you
-// scroll down and un-builds as you scroll back up. The "ms" durations below
-// are virtual timeline units — the scroll range maps linearly onto the whole
-// timeline, so only their ratios to each other matter.
-// ---------------------------------------------------------------------------
-export const ASSEMBLY = {
-  /** Master switch. Set to false to show the keyboard fully assembled. */
-  enabled: true,
-
-  /** Scroll distance that plays the full assembly, as a fraction of the
-   *  viewport height. [0.5 … 3] Higher = a slower, more deliberate scrub. */
-  scrollRange: 2,
-
-  /** Duration of the base plate rising animation, timeline ms. [400 … 2000] */
-  baseDuration: 1200,
-
-  /** How far below (as fraction of viewport height) the base starts. [0.3 … 1.5] */
-  baseRiseHeight: 0.9,
-
-  /** Duration of each key's drop animation, timeline ms. [300 … 1500] */
-  keyDuration: 1000,
-
-  /** How far above (as fraction of viewport height) keys start. [0.3 … 1.5] */
-  keyDropHeight: 0.6,
-
-  /** Max stagger spread across all keys, timeline ms. [100 … 1200]
-   *  Each key gets a random delay in this window, so the order they land
-   *  in is shuffled. Higher = fewer keys animating at once. */
-  keyStagger: 900,
-
-  /** Fraction of baseDuration at which keys start falling. [0 … 1]
-   *  0.5 = keys start falling when the base is halfway up. */
-  keyStartOffset: 1,
-
-  /** Ease-out exponent for every assembly motion (pieces and board tilt).
-   *  [1 … 5] — 1 = linear (mechanical), 2 = gentle, 3 = classic cubic,
-   *  4-5 = pieces rush in and brake hard at the end. */
-  easePower: 3,
-
-  /** Random rotation range for tumbling keys, degrees. [0 … 45]
-   *  0 = keys fall straight, 15 = subtle wobble, 45 = dramatic tumble. */
-  tumbleRange: 30,
-
-  // --- Board rotation during & after assembly ---
-
-  /** Starting X tilt during assembly, radians. [-0.8 … 0]
-   *  More negative = more tilted back (showing the top face).
-   *  Eases to GLASS.tiltX as keys land. */
-  startTiltX: -0.55,
-
-  /** Starting Y rotation during assembly, radians. [-0.5 … 0.5]
-   *  Nonzero = keyboard starts angled from the side. Eases to 0. */
-  startRotateY: 0.25,
-
-  /** Continuous idle float amplitude after settling, radians. [0 … 0.01]
-   *  0 = perfectly still, 0.004 = barely perceptible, 0.01 = gentle sway. */
-  idleAmplitude: 0.01,
-
-  /** Idle float speed, oscillations per second. [0.1 … 1] */
-  idleSpeed: 0.3,
-} as const;
-
-// ---------------------------------------------------------------------------
-// Melt sequence, scrubbed by scroll: after the sentence and links have typed
-// out, the next MELT.scrollRange of scroll turns the keyboard into molten
-// glass — keys slump, pool into each other, drip and slide off the bottom
-// of the screen, the base plate following. Scrolling back up re-solidifies it.
-// The typed text and link pills stay put.
-// ---------------------------------------------------------------------------
-export const MELT = {
-  /** Master switch. false = the page ends with the typed links. */
-  enabled: true,
-
-  /** Scroll distance that plays the whole melt, as a fraction of the
-   *  viewport height. [0.5 … 4] Higher = slower, more deliberate melt. */
-  scrollRange: 2.4,
-
-  /** How much of the melt is spent staggering the keys' start times.
-   *  [0 … 0.8] — 0 = every key melts in lockstep, 0.6 = the last key
-   *  starts when the first is already 60% gone. Lower keeps the board
-   *  melting as one mass. */
-  stagger: 0.35,
-
-  /** Bias for which keys go first. [-1 … 1] — positive = bottom rows melt
-   *  first (heat pooling at the base), negative = top rows first,
-   *  0 = fully random order. */
-  rowBias: 0.5,
-
-  /** Fraction of each key's own melt spent softening and pooling in place
-   *  before it lets go and slides. [0.2 … 0.8] */
-  sagPortion: 0.4,
-
-  // --- Slump & pool (vertex deformation while softening) ---
-
-  /** How flat the cap collapses, fraction of its depth. [0 … 0.9] */
-  slump: 0.7,
-
-  /** How much the cap squats vertically while softening. [0 … 0.5] */
-  squash: 0.2,
-
-  /** Sideways spread as a fraction of width, strongest at the base — this
-   *  is what makes neighbours run together into one pool. [0 … 1] */
-  spread: 0.55,
-
-  /** Liquid wobble amplitude, fraction of the piece's size. [0 … 0.2] */
-  wobble: 0.07,
-
-  /** Wobble speed. [0 … 3] */
-  wobbleSpeed: 1.2,
-
-  /** How far a softening key sinks toward the plate, fraction of key
-   *  depth. [0 … 1] */
-  sink: 0.45,
-
-  // --- Drip (tail forming, then the slow slide off-screen) ---
-
-  /** Length of the tapering tail the underside stretches into, as a
-   *  multiple of the piece's height. [0 … 6] */
-  tailLength: 4,
-
-  /** How much the tail narrows toward its tip. [0 … 0.95] */
-  tailNarrow: 0.75,
-
-  /** How far a blob slides, as a fraction of viewport height. Should clear
-   *  the bottom edge from wherever the keyboard sits. [0.8 … 2] */
-  fallHeight: 1.7,
-
-  /** Sideways drift while sliding, as a fraction of the key's width.
-   *  [0 … 3] — randomized per key, both directions. */
-  fallDrift: 0.6,
-
-  /** Max spin while sliding, degrees. [0 … 90] — randomized per key. */
-  fallSpin: 12,
-
-  /** Feel of the slide. [1 … 3] — 1 = constant speed, 2 = a slow start
-   *  that accelerates like a heavy drip, 3 = hangs then plunges. */
-  fallPower: 1.5,
-
-  /** Delay before the base plate starts melting, as a fraction of the melt.
-   *  [0 … 0.8] — the plate should let go after most keys have. */
-  plateDelay: 0.45,
-
-  /** How strongly the plate deforms relative to the keys. [0 … 1] */
-  plateAmount: 0.5,
-
-  /** Face subdivisions of the key / plate meshes. More = smoother drips,
-   *  more triangles. keySegments [2 … 8], plateSegments [4 … 16] */
-  keySegments: 4,
-  plateSegments: 10,
-
-  // --- Molten look ---
-  // Off by default: the glass keeps its normal look and only the shape
-  // deforms. Raise glowIntensity / the tint alpha for a hot amber glow.
-
-  /** Glow color of the molten glass. Alpha = peak glow strength. */
-  glowColor: "rgba(255, 96, 16, 0.9)",
-
-  /** Emissive intensity at full glow. [0 … 4] — 0 = none (stays glassy),
-   *  0.5 = warm, 2 = furnace. */
-  glowIntensity: 0,
-
-  /** Tint the transmission color takes on when molten. Alpha = strength,
-   *  0 = keep the glass's own color. */
-  moltenTint: "rgba(255, 120, 30, 0)",
-
-  /** Surface roughness at full melt. [0 … 0.05] — keep near 0: anything
-   *  above ~0.05 turns the glass milky in this shader. */
-  moltenRoughness: 0,
-
-  /** Wobbly-refraction strength at full melt. [0 … 1.5] */
-  moltenDistortion: 0.9,
-
-  /** Speed of that wobble. [0 … 0.6] */
-  moltenTemporalDistortion: 0.25,
-
-  /** Extra downward tilt of the whole board as it melts, radians. [0 … 0.5]
-   *  Shows more of the top face so the pooling reads against the backdrop. */
-  tiltX: 0.18,
-} as const;
-
-// ---------------------------------------------------------------------------
-// "Liquid" DOM glass (SVG displacement filter, after reactbits' GlassSurface).
-// Only used by the alternate DOM keyboard (LiquidGlassKeyboard.tsx), which is
-// currently not mounted anywhere — safe to ignore unless you bring it back.
-// Chromium-only for the full effect; Safari/Firefox get a frosted fallback.
-// ---------------------------------------------------------------------------
-export const GLASS_SURFACE = {
-  /** Width of the refracting edge band, as a fraction of the element's
-   *  smaller side. [0.02 … 0.2] — bigger = wider bent rim. */
-  borderWidth: 0.07,
-
-  /** Brightness (%) of the displacement map's core. [0 … 100] — lower =
-   *  stronger distortion reaches the middle, higher = calm center. */
-  brightness: 50,
-
-  /** Opacity of the map's core. [0 … 1] — lower lets edge distortion bleed
-   *  further inward. */
-  opacity: 0.93,
-
-  /** Blur (px) of the displacement map — softens the transition between
-   *  edge distortion and calm center. [2 … 30]. */
-  blur: 11,
-
-  /** Output blur (px) applied after displacement. [0 … 3] — 0 = crisp. */
-  displace: 0.4,
-
-  /** Frost overlay opacity behind the content. [0 … 0.5]. */
-  backgroundOpacity: 0.06,
-
-  /** Backdrop saturation multiplier. [0.5 … 2]. */
-  saturation: 1.2,
-
-  /** Displacement strength. [-300 … 0] — more negative = stronger edge
-   *  refraction. */
-  distortionScale: -140,
-
-  /** Extra per-channel displacement for chromatic fringing. [0 … 40]. */
-  redOffset: 0,
-  greenOffset: 10,
-  blueOffset: 20,
-
-  /** Which channels of the map drive x/y displacement. "R" | "G" | "B". */
-  xChannel: "R" as "R" | "G" | "B",
-  yChannel: "G" as "R" | "G" | "B",
-
-  /** Blend mode used when building the displacement map. */
-  mixBlendMode: "difference",
-} as const;
-
-// ---------------------------------------------------------------------------
-// Dark room (the revamp): the keyboard alone on a floor, one spotlight above.
-// Everything here is in world units — the board is ROOM.boardWidth wide and
-// the rest of the room is sized relative to that.
+// The room
 // ---------------------------------------------------------------------------
 export const ROOM = {
   /** Width of the keyboard in world units. Everything else scales off it.
    *  [20 … 40] — only changes the relationship to the fog/room size. */
   boardWidth: 30,
+
+  /** Key layout and legends. */
+  board: {
+    /** Board proportions, width / height in key units. Wider = flatter. */
+    aspect: "15 / 5.6",
+    /** Speed of the press animation. [8 … 40] — 8-12 soft, 20-25
+     *  mechanical, 40 instant. */
+    pressSpeed: 26,
+    /** Plate footprint relative to the key grid. */
+    plateWidthFactor: 1.03,
+    plateHeightFactor: 1.06,
+    /** Plate thickness relative to key height. [0.2 … 1] */
+    plateDepthScale: 0.5,
+    /** Legend ink: main labels and the small shift-symbols. */
+    legend: {
+      ink: "rgba(255,255,255,0.92)",
+      soft: "rgba(255,255,255,0.5)",
+      /** Label sizes as a fraction of the cap's depth. */
+      mainScale: 0.42,
+      smallScale: 0.3,
+      shiftScale: 0.22,
+    },
+  },
 
   /** Fraction of the viewport width the board should span. [0.45 … 0.85] */
   fitWidth: 0.4,
@@ -798,8 +201,7 @@ export const ROOM = {
     ambient: 0,
   },
 
-  /** Glass tuned for the dark room (the old GLASS.key values assume a
-   *  bright video behind the keys). Same meaning as GLASS.key. */
+  /** Glass materials (MeshTransmissionMaterial knobs). */
   glass: {
     key: {
       roughness: 0,
@@ -891,7 +293,7 @@ export const ROOM = {
     /** Pixels of legend texture per world unit. [48 … 160] */
     legendResolution: 96,
     /** Corner rounding of the caps, as a fraction of the cap's smaller
-     *  side. Overrides GLASS.keyRadiusFactor for the room build.
+     *  side.
      *  [0.02 … 0.5] — 0.05 = crisp machined edges, 0.24 = soft pillows. */
     keyRadiusFactor: 0.05,
     /** Corner rounding of the plate, relative to key height. [0.02 … 0.5] */
@@ -910,11 +312,9 @@ export const ROOM = {
       /** Depth of the dish scooped into the top, as a fraction of key
        *  height. 0 = flat. [0 … 0.2] — SA-style caps sit around 0.12. */
       dish: 0.2,
-      /** Key height as a multiple of one key unit (overrides
-       *  GLASS.keyDepthFactor here). [0.5 … 1.4] — SA-style is tall, ~1.1. */
+      /** Key height as a multiple of one key unit . [0.5 … 1.4] — SA-style is tall, ~1.1. */
       height: 0.85,
-      /** Gap between caps as a fraction of a key unit (overrides
-       *  GLASS.keyGapFactor here). [0.03 … 0.2] */
+      /** Gap between caps as a fraction of a key unit . [0.03 … 0.2] */
       gap: 0.0,
       /** Show a switch housing + stem under each cap (seen through the
        *  glass; the stem travels with the cap when pressed). Off: the caps

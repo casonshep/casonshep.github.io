@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { ROWS, ROW_UNITS, type KeyConfig } from "../keyboard/Keyboard";
-import { GLASS } from "../keyboard/visualConfig";
+import { ROOM } from "../keyboard/visualConfig";
 
 // Key layout in world units, y-up: x runs along the board, z runs from the
 // back row (negative) to the front row (positive). Depth (key height) is y.
@@ -26,14 +26,11 @@ export interface BoardLayout {
   keys: LayoutKey[];
 }
 
-/** Board footprint from ROOM.boardWidth and the GLASS.boardAspect ratio. */
-export function layoutBoard(
-  boardW: number,
-  opts: { gapFactor?: number; depthFactor?: number } = {},
-): BoardLayout {
-  const gapFactor = opts.gapFactor ?? GLASS.keyGapFactor;
-  const depthFactor = opts.depthFactor ?? GLASS.keyDepthFactor;
-  const [aw, ah] = GLASS.boardAspect.split("/").map((s) => Number(s.trim()));
+/** Board footprint from ROOM.boardWidth and the ROOM.board.aspect ratio. */
+export function layoutBoard(boardW: number): BoardLayout {
+  const gapFactor = ROOM.glass.detail.gap;
+  const depthFactor = ROOM.glass.detail.height;
+  const [aw, ah] = ROOM.board.aspect.split("/").map((s) => Number(s.trim()));
   const boardH = boardW * (ah / aw);
   const unit = boardW / ROW_UNITS;
   const rowH = boardH / ROWS.length;
@@ -77,9 +74,9 @@ export function makeLegendTexture(
     `${weight} ${Math.round(px)}px ui-monospace, Menlo, monospace`;
 
   if (cfg.label) {
-    const px = H * (cfg.small ? GLASS.legend.smallScale : GLASS.legend.mainScale);
+    const px = H * (cfg.small ? ROOM.board.legend.smallScale : ROOM.board.legend.mainScale);
     ctx.font = font(px, cfg.small ? 600 : 700);
-    ctx.fillStyle = GLASS.legend.ink;
+    ctx.fillStyle = ROOM.board.legend.ink;
     ctx.textBaseline = "middle";
     if (cfg.align === "left") {
       ctx.textAlign = "left";
@@ -90,8 +87,8 @@ export function makeLegendTexture(
     }
   }
   if (cfg.shiftLabel) {
-    ctx.font = font(H * GLASS.legend.shiftScale, 500);
-    ctx.fillStyle = GLASS.legend.soft;
+    ctx.font = font(H * ROOM.board.legend.shiftScale, 500);
+    ctx.fillStyle = ROOM.board.legend.soft;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillText(cfg.shiftLabel, H * 0.18, H * 0.12);
