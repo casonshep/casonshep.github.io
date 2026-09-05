@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ROSTER, avatarById, spriteUrl } from "./roster";
-import { isConfigured, type Presence } from "./usePresence";
+import { MAX_MESSAGE, MAX_NAME, isConfigured, type Presence } from "./usePresence";
 
 // One Pokémon per open window of the site, wandering along the bottom of
-// the page. Yours is marked and clicking it opens the picker.
+// the page, captioned with its owner's name and whatever they last said.
 //
 // Presence is owned by Site, not by this component: the plate's glow is
 // coloured to whichever sprite you picked, so the choice has two consumers.
@@ -21,6 +21,8 @@ import { isConfigured, type Presence } from "./usePresence";
 const WALK = {
   /** Sprite box, px. The Gen-V sprites are ~64px, so past that they blur. */
   size: 56,
+  /** Room under the sprite for its name label, px. */
+  label: 16,
   /** Distance from the bottom edge. */
   bottom: "clamp(0.75rem, 2vh, 1.5rem)",
   /** Walking speed, px per second. [10 … 60] — 24 is an amble. */
@@ -35,13 +37,15 @@ const WALK = {
   maxStroll: 240,
 } as const;
 
+const SLOT_H = WALK.size + WALK.label;
+
 const STYLE = `
 .presence-field {
   position: fixed;
   left: 0;
   right: 0;
   bottom: ${WALK.bottom};
-  height: ${WALK.size}px;
+  height: ${SLOT_H}px;
   z-index: 10;
   pointer-events: none;
 }
@@ -50,58 +54,146 @@ const STYLE = `
   left: 0;
   bottom: 0;
   width: ${WALK.size}px;
-  height: ${WALK.size}px;
-  display: grid;
-  place-items: center;
+  height: ${SLOT_H}px;
   /* Positioned by the walk loop via transform; will-change keeps it on its
      own layer so 60fps of movement never touches layout. */
   will-change: transform;
 }
-.presence-slot img {
+/* The facing flip lives on the sprite, never the slot — mirroring the slot
+   would mirror the name and the speech bubble with it. */
+.presence-sprite {
+  position: absolute;
+  left: 0;
+  bottom: ${WALK.label}px;
+  width: ${WALK.size}px;
+  height: ${WALK.size}px;
+  display: grid;
+  place-items: center;
+}
+.presence-sprite img {
   max-width: 100%;
   max-height: 100%;
   image-rendering: pixelated;
+  transform: scaleX(var(--flip, 1));
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
 }
-/* Yours: a lit floor under the sprite, and it's the only clickable one. */
-.presence-me {
-  pointer-events: auto;
-  cursor: pointer;
-  background: none;
-  border: 0;
-  padding: 0;
+.presence-name {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
-.presence-me::after {
+.presence-you .presence-name { color: rgba(255, 255, 255, 0.85); }
+
+.presence-bubble {
+  position: absolute;
+  bottom: ${SLOT_H + 8}px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(16rem, 62vw);
+  width: max-content;
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  background: rgba(238, 240, 246, 0.95);
+  color: #14151a;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+.presence-bubble::after {
   content: "";
   position: absolute;
-  left: 12%;
-  right: 12%;
-  bottom: 2px;
-  height: 5px;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(255, 120, 210, 0.75),
-    rgba(255, 120, 210, 0) 70%
-  );
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(238, 240, 246, 0.95);
 }
+
+/* Yours is the only clickable one. */
+.presence-me { pointer-events: auto; cursor: pointer; background: none; border: 0; padding: 0; }
 .presence-me:focus-visible { outline: 2px solid rgba(255,255,255,0.6); border-radius: 8px; }
 
-.presence-picker {
+.presence-composer {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(${WALK.bottom} + ${SLOT_H}px + 3.2rem);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(26rem, 88vw);
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(14, 14, 18, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+}
+.presence-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  font-size: 0.8rem;
+}
+.presence-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+.presence-hint {
+  flex: 0 0 auto;
+  font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.presence-panel {
   pointer-events: auto;
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(${WALK.bottom} + ${WALK.size}px + 1.4rem);
+  bottom: calc(${WALK.bottom} + ${SLOT_H}px + 1.4rem);
   z-index: 11;
   width: min(92vw, 26rem);
-  max-height: min(60vh, 22rem);
+  max-height: min(64vh, 24rem);
   overflow-y: auto;
   padding: 0.75rem;
   border-radius: 14px;
-  background: rgba(14, 14, 18, 0.92);
+  background: rgba(14, 14, 18, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
+}
+.presence-namerow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0 0.15rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 0.6rem;
+}
+.presence-namerow input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  font-size: 0.78rem;
+  outline: none;
+}
+.presence-namerow input:focus { border-color: rgba(255, 255, 255, 0.3); }
+.presence-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: 0.25rem;
@@ -130,16 +222,33 @@ const STYLE = `
   border-color: rgba(255, 120, 210, 0.6);
   color: rgba(255, 255, 255, 0.95);
 }
-.presence-count {
+
+.presence-hud {
   position: fixed;
   right: clamp(1rem, 2.5vw, 2rem);
   bottom: ${WALK.bottom};
   z-index: 9;
-  pointer-events: none;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
   font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+.presence-hud button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: color 140ms ease-out;
+}
+.presence-hud button:hover, .presence-hud button:focus-visible {
+  color: rgba(255, 255, 255, 0.95);
+  outline: none;
 }
 `;
 
@@ -165,10 +274,21 @@ function pickTarget(from: number, usable: number) {
   return Math.max(0, Math.min(usable, from + (right ? dist : -dist)));
 }
 
+/** True when the key event came from somewhere the user is typing. */
+function isTyping(target: EventTarget | null) {
+  const el = target as HTMLElement | null;
+  const tag = el?.tagName?.toLowerCase();
+  return tag === "input" || tag === "textarea" || !!el?.isContentEditable;
+}
+
 export default function PresenceBar({ presence }: { presence: Presence }) {
-  const { peers, me, avatarId, setAvatarId, connected } = presence;
+  const { peers, me, avatarId, setAvatarId, name, setName, say, connected } =
+    presence;
   const [open, setOpen] = useState(false);
+  const [composing, setComposing] = useState(false);
+  const [draft, setDraft] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const nodes = useRef(new Map<string, HTMLElement>());
   const walkers = useRef(new Map<string, Walker>());
   const peersRef = useRef(peers);
@@ -206,7 +326,9 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
           walkers.current.set(peer.key, w);
         }
 
-        if (!reduced && !w.held) {
+        // Stand still while saying something, so the bubble is readable.
+        const talking = Boolean(peer.message);
+        if (!reduced && !w.held && !talking) {
           if (now >= w.waitUntil) {
             const dx = w.targetX - w.x;
             if (Math.abs(dx) < 1) {
@@ -224,9 +346,8 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
           w.targetX = Math.max(0, Math.min(usable, w.targetX));
         }
 
-        el.style.transform = `translate3d(${w.x.toFixed(1)}px,0,0) scaleX(${
-          w.facing > 0 ? -1 : 1
-        })`;
+        el.style.transform = `translate3d(${w.x.toFixed(1)}px,0,0)`;
+        el.style.setProperty("--flip", w.facing > 0 ? "-1" : "1");
       }
 
       // Forget anyone who has left, so the map doesn't grow all session.
@@ -243,21 +364,34 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Click-away and Escape close the picker.
+  // Enter anywhere opens the composer; Escape closes whatever is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setComposing(false);
+        setOpen(false);
+        return;
+      }
+      if (e.key !== "Enter" || e.repeat || isTyping(e.target)) return;
+      e.preventDefault();
+      setComposing(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (composing) inputRef.current?.focus();
+  }, [composing]);
+
+  // Click-away closes the identity panel.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
     window.addEventListener("pointerdown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("pointerdown", onDown);
   }, [open]);
 
   // Nothing to draw until the stored choice has been read.
@@ -268,40 +402,87 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
     const w = walkers.current.get(key);
     if (w) w.held = held;
   };
+  const send = () => {
+    say(draft);
+    setDraft("");
+    setComposing(false);
+  };
 
   return (
     <div ref={rootRef}>
       <style>{STYLE}</style>
-      {open && (
-        <div className="presence-picker" aria-label="Choose your avatar">
-          {ROSTER.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              className="presence-option"
-              aria-pressed={a.id === avatarId}
-              onClick={() => {
-                setAvatarId(a.id);
-                setOpen(false);
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={spriteUrl(a.id)}
-                alt=""
-                loading="lazy"
-                crossOrigin="anonymous"
-              />
-              {a.name}
-            </button>
-          ))}
+
+      {composing && (
+        <div className="presence-composer">
+          <input
+            ref={inputRef}
+            className="presence-input"
+            value={draft}
+            maxLength={MAX_MESSAGE}
+            placeholder="say something…"
+            aria-label="Say something"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                send();
+              }
+            }}
+            onBlur={() => !draft && setComposing(false)}
+          />
+          <span className="presence-hint">⏎ send · esc</span>
         </div>
       )}
-      {connected && others > 0 && (
-        <span className="presence-count">
-          {others} other{others === 1 ? "" : "s"} here
-        </span>
+
+      {open && (
+        <div className="presence-panel" aria-label="Your avatar and name">
+          <div className="presence-namerow">
+            <input
+              value={name}
+              maxLength={MAX_NAME}
+              placeholder="your name"
+              aria-label="Your display name"
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") setOpen(false);
+              }}
+            />
+          </div>
+          <div className="presence-grid">
+            {ROSTER.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className="presence-option"
+                aria-pressed={a.id === avatarId}
+                onClick={() => setAvatarId(a.id)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={spriteUrl(a.id)}
+                  alt=""
+                  loading="lazy"
+                  crossOrigin="anonymous"
+                />
+                {a.name}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
+
+      <div className="presence-hud">
+        <button type="button" onClick={() => setOpen((v) => !v)}>
+          {name || "set name"}
+        </button>
+        <span>⏎ to chat</span>
+        {connected && others > 0 && (
+          <span>
+            {others} other{others === 1 ? "" : "s"} here
+          </span>
+        )}
+      </div>
+
       <div className="presence-field">
         {peers.map((p) => {
           const a = avatarById(p.avatarId);
@@ -310,17 +491,23 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
             if (el) nodes.current.set(p.key, el);
             else nodes.current.delete(p.key);
           };
-          const sprite = (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={spriteUrl(p.avatarId)} alt={a.name} crossOrigin="anonymous" />
+          const inner = (
+            <>
+              {p.message && <span className="presence-bubble">{p.message}</span>}
+              <span className="presence-sprite">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={spriteUrl(p.avatarId)} alt={a.name} crossOrigin="anonymous" />
+              </span>
+              {p.name && <span className="presence-name">{p.name}</span>}
+            </>
           );
           return mine ? (
             <button
               key={p.key}
               ref={ref}
               type="button"
-              className="presence-slot presence-me"
-              aria-label={`You are ${a.name} — change avatar`}
+              className="presence-slot presence-me presence-you"
+              aria-label={`You are ${p.name || a.name} — change name or avatar`}
               aria-expanded={open}
               // Stand still while pointed at, or it walks out from under
               // the cursor before it can be clicked.
@@ -330,15 +517,16 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
               onBlur={() => hold(p.key, false)}
               onClick={() => setOpen((v) => !v)}
             >
-              {sprite}
+              {inner}
             </button>
           ) : (
-            <span key={p.key} ref={ref} className="presence-slot" title={a.name}>
-              {sprite}
+            <span key={p.key} ref={ref} className="presence-slot" title={p.name || a.name}>
+              {inner}
             </span>
           );
         })}
       </div>
+
       {!isConfigured && (
         <span hidden>
           Presence is offline: set NEXT_PUBLIC_SUPABASE_URL and

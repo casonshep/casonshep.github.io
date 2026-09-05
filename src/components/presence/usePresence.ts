@@ -18,9 +18,18 @@ export const PRESENCE = {
   room: "cason-site-presence",
   /** localStorage key for the avatar choice (per browser, per person). */
   storageKey: "presence.avatar",
-  /** sessionStorage key for this tab's identity — see `tabId` below. */
-  tabKey: "presence.tab",
+  /** localStorage key for the display name. */
+  nameKey: "presence.name",
 } as const;
+
+/** How long a chat bubble stays up, ms. The sender clears its own message
+ *  when this elapses, so the bubble disappears everywhere at once and no
+ *  receiver has to reason about another machine's clock. */
+export const MESSAGE_TTL = 7000;
+/** Longest message accepted, characters. */
+export const MAX_MESSAGE = 140;
+/** Longest display name, characters. */
+export const MAX_NAME = 18;
 
 /** One visitor's tracked payload. */
 export type Peer = {
@@ -29,6 +38,10 @@ export type Peer = {
   avatarId: number;
   /** ms since epoch, so the bar can order by arrival instead of by hash. */
   joinedAt: number;
+  /** Chosen display name, or "" if they never set one. */
+  name: string;
+  /** What they last said, while it is still on screen. */
+  message: string | null;
 };
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -49,25 +62,30 @@ function getClient() {
   return client;
 }
 
-/** This tab's presence key. sessionStorage (not localStorage) is the point:
- *  it survives a reload but is unique per tab, which is what makes "every
- *  open window adds a Pokémon" true. */
+/** This tab's presence key: minted per page load and never persisted.
+ *
+ *  It lived in sessionStorage first, so a reload kept the same key — but
+ *  duplicating a tab copies sessionStorage, and the copy then shared the
+ *  original's key and collapsed into a single sprite. Nothing visible is
+ *  tied to this id (the avatar and name come from localStorage), so an
+ *  in-memory value costs nothing and makes every tab distinct however it
+ *  was opened. On reload the old entry clears as soon as the socket
+ *  closes, so the stale sprite does not linger. */
 function tabId() {
-  try {
-    const found = sessionStorage.getItem(PRESENCE.tabKey);
-    if (found) return found;
-    const made = crypto.randomUUID();
-    sessionStorage.setItem(PRESENCE.tabKey, made);
-    return made;
-  } catch {
-    // Private mode or blocked storage: a fresh id each load is fine.
-    return crypto.randomUUID();
-  }
+  return crypto.randomUUID();
 }
 
 /** The stored choice, or a random one — which is then written back, so a
  *  visitor who never opens the picker still keeps the same Pokémon across
  *  reloads instead of being reshuffled every visit. */
+function readName() {
+  try {
+    return (localStorage.getItem(PRESENCE.nameKey) ?? "").slice(0, MAX_NAME);
+  } catch {
+    return "";
+  }
+}
+
 function readAvatar() {
   try {
     const raw = localStorage.getItem(PRESENCE.storageKey);
@@ -89,6 +107,11 @@ export type Presence = {
   me: string;
   avatarId: number;
   setAvatarId: (id: number) => void;
+  /** Your display name, "" until you set one. */
+  name: string;
+  setName: (name: string) => void;
+  /** Say something: shows over your sprite for everyone, then clears. */
+  say: (text: string) => void;
   /** False until the channel is live (or forever, if unconfigured). */
   connected: boolean;
 };
@@ -101,15 +124,24 @@ export function usePresence(): Presence {
   const [session, setSession] = useState<{
     avatarId: number;
     joinedAt: number;
+    name: string;
+    message: string | null;
   } | null>(null);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [connected, setConnected] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const clearTimer = useRef(0);
   const avatarId = session?.avatarId ?? null;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSession({ avatarId: readAvatar(), joinedAt: Date.now() });
+    setSession({
+      avatarId: readAvatar(),
+      joinedAt: Date.now(),
+      name: readName(),
+      message: null,
+    });
+    return () => window.clearTimeout(clearTimer.current);
   }, []);
 
   useEffect(() => {
@@ -128,12 +160,20 @@ export function usePresence(): Presence {
       const state = channel.presenceState<{
         avatarId: number;
         joinedAt: number;
+        name?: string;
+        message?: string | null;
       }>();
       const next: Peer[] = [];
       for (const [key, metas] of Object.entries(state)) {
         const meta = metas[0];
         if (!meta) continue;
-        next.push({ key, avatarId: meta.avatarId, joinedAt: meta.joinedAt });
+        next.push({
+          key,
+          avatarId: meta.avatarId,
+          joinedAt: meta.joinedAt,
+          name: meta.name ?? "",
+          message: meta.message ?? null,
+        });
       }
       next.sort((a, b) => a.joinedAt - b.joinedAt || a.key.localeCompare(b.key));
       setPeers(next);
@@ -156,9 +196,16 @@ export function usePresence(): Presence {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me, session !== null]);
 
-  // Republish when the choice changes, without re-subscribing.
+  // Republish when anything about us changes, without re-subscribing.
+  // Debounced: `name` updates on every keystroke, and tracking each one
+  // would be a realtime message per character — enough to hit the client's
+  // event rate limit while someone types their name.
   useEffect(() => {
-    if (session) channelRef.current?.track(session);
+    if (!session) return;
+    const t = window.setTimeout(() => {
+      channelRef.current?.track(session);
+    }, 200);
+    return () => window.clearTimeout(t);
   }, [session]);
 
   const setAvatarId = useCallback((id: number) => {
@@ -168,6 +215,28 @@ export function usePresence(): Presence {
     } catch {
       // Not being able to remember the choice is not worth failing over.
     }
+  }, []);
+
+  const setName = useCallback((raw: string) => {
+    const name = raw.trim().slice(0, MAX_NAME);
+    setSession((s) => (s ? { ...s, name } : s));
+    try {
+      localStorage.setItem(PRESENCE.nameKey, name);
+    } catch {
+      // As above.
+    }
+  }, []);
+
+  const say = useCallback((raw: string) => {
+    const message = raw.trim().slice(0, MAX_MESSAGE);
+    if (!message) return;
+    setSession((s) => (s ? { ...s, message } : s));
+    // We clear our own bubble rather than letting each receiver time it
+    // out, so it vanishes for everyone at the same moment.
+    window.clearTimeout(clearTimer.current);
+    clearTimer.current = window.setTimeout(() => {
+      setSession((s) => (s ? { ...s, message: null } : s));
+    }, MESSAGE_TTL);
   }, []);
 
   // Unconfigured, or not connected yet: show just this tab, so the bar and
@@ -180,6 +249,9 @@ export function usePresence(): Presence {
     me,
     avatarId: avatarId ?? 0,
     setAvatarId,
+    name: session?.name ?? "",
+    setName,
+    say,
     connected,
   };
 }
