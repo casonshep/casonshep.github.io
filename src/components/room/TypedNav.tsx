@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { KeyboardController } from "../keyboard/Keyboard";
+import { typeString, type KeyboardController } from "../keyboard/Keyboard";
 import { ROOM } from "../keyboard/visualConfig";
 
 // Top-right nav, typed in on load. Each character presses its key on the 3D
 // keyboard (via the controller); the item being typed carries a blinking
-// cursor, and becomes a link once complete.
+// cursor, and becomes a button once complete.
+//
+// Clicking one types it on the board a second time and raises its panel —
+// the nav resolves inside the room rather than navigating away from it, so
+// there is one screen and no router.
 
 const STYLE = `
 @keyframes nav-cursor-blink {
@@ -23,11 +27,20 @@ const STYLE = `
   animation: nav-cursor-blink 1.1s step-end infinite;
 }
 .nav-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
   color: rgba(255, 255, 255, 0.62);
   text-decoration: none;
   transition: color 140ms ease-out;
 }
 .nav-link:hover, .nav-link:focus-visible {
+  color: rgba(255, 255, 255, 0.95);
+  outline: none;
+}
+.nav-link[aria-expanded="true"] {
   color: rgba(255, 255, 255, 0.95);
 }
 `;
@@ -41,8 +54,13 @@ ITEMS.forEach((it, i) => {
 
 export default function TypedNav({
   controller,
+  open,
+  onSelect,
 }: {
   controller: React.RefObject<KeyboardController | null>;
+  /** Label of the panel currently up, if any. */
+  open: string | null;
+  onSelect: (label: string) => void;
 }) {
   const [typed, setTyped] = useState<string[]>(() => ITEMS.map(() => ""));
   // Index into STREAM of the character being typed next; STREAM.length = done.
@@ -111,9 +129,25 @@ export default function TypedNav({
         const showCursor = started && activeItem === i;
         if (!text && !showCursor) return null;
         return complete ? (
-          <a key={it.label} href={it.href} className="nav-link">
+          <button
+            key={it.label}
+            type="button"
+            className="nav-link"
+            aria-expanded={open === it.label}
+            aria-controls="room-panel"
+            onClick={() => {
+              // Only on the way in: typing it again as it closes reads as
+              // an echo of a click that undid something.
+              if (open !== it.label && controller.current)
+                typeString(controller.current, it.label, {
+                  charMs: ROOM.nav.charMs,
+                  jitterMs: ROOM.nav.jitterMs,
+                });
+              onSelect(it.label);
+            }}
+          >
             {text}
-          </a>
+          </button>
         ) : (
           <span key={it.label} style={{ color: "rgba(255,255,255,0.62)" }}>
             {text}

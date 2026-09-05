@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ROSTER, avatarById, spriteUrl } from "./roster";
 import {
-  MAX_MESSAGE,
+  isKeySoundMuted,
+  setKeySoundMuted,
+} from "../keyboard/Keyboard";
+import AsciiFloor from "./AsciiFloor";
+import ChatConsole from "./ChatConsole";
+import { useChatLog } from "./chatLog";
+import { EMOTES, isEmote, runCommand } from "./commands";
+import { MAX_DEX } from "./pokedex";
+import { PICKER, avatarById, spriteUrl } from "./roster";
+import {
   MAX_NAME,
   isConfigured,
   parseName,
@@ -29,8 +37,10 @@ const WALK = {
   size: 56,
   /** Room under the sprite for its name label, px. */
   label: 16,
-  /** Distance from the bottom edge. */
-  bottom: "clamp(0.75rem, 2vh, 1.5rem)",
+  /** Distance from the bottom edge. Everything else along the bottom —
+   *  composer, panel, HUD, and the ASCII ground — is placed off this, and
+   *  the gap it leaves is what the ground is drawn into. */
+  bottom: "clamp(1rem, 2.8vh, 1.8rem)",
   /** Walking speed, px per second. [10 … 60] — 24 is an amble. */
   speed: 24,
   /** How long a sprite stands still between strolls, ms. */
@@ -93,7 +103,9 @@ const STYLE = `
   font-size: 0.62rem;
   letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.5);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  /* A ring rather than a drop shadow: the name sits in the same band as the
+     ground's top rows, and small dim mono over small dim mono is mush. */
+  text-shadow: 0 0 3px #05050a, 0 0 6px #05050a, 0 1px 2px rgba(0, 0, 0, 0.95);
 }
 .presence-you .presence-name { color: rgba(255, 255, 255, 0.85); }
 
@@ -114,6 +126,18 @@ const STYLE = `
   overflow-wrap: anywhere;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
 }
+/* Emotes ride in on the message field, so they animate the sprite wrapper
+   rather than the <img> — the facing flip lives on the image, and one
+   transform would overwrite the other. */
+@keyframes emote-dance {
+  0%, 100% { transform: translateY(0) rotate(-7deg); }
+  50% { transform: translateY(-9px) rotate(7deg); }
+}
+.emote-dance { animation: emote-dance 460ms ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .emote-dance { animation: none; }
+}
+
 .presence-bubble::after {
   content: "";
   position: absolute;
@@ -128,47 +152,15 @@ const STYLE = `
 .presence-me { pointer-events: auto; cursor: pointer; background: none; border: 0; padding: 0; }
 .presence-me:focus-visible { outline: 2px solid rgba(255,255,255,0.6); border-radius: 8px; }
 
-.presence-composer {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(${WALK.bottom} + ${SLOT_H}px + 3.2rem);
-  z-index: 12;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: min(26rem, 88vw);
-  padding: 0.45rem 0.7rem;
-  border-radius: 999px;
-  background: rgba(14, 14, 18, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(10px);
-}
-.presence-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  background: none;
-  border: 0;
-  outline: none;
-  color: rgba(255, 255, 255, 0.92);
-  font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
-  font-size: 0.8rem;
-}
-.presence-input::placeholder { color: rgba(255, 255, 255, 0.3); }
-.presence-hint {
-  flex: 0 0 auto;
-  font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
-  font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.28);
-}
-
 .presence-panel {
   pointer-events: auto;
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(${WALK.bottom} + ${SLOT_H}px + 1.4rem);
-  z-index: 11;
+  /* Above the chat console: on a narrow viewport the two overlap, and the
+     picker is the transient one. */
+  z-index: 13;
   width: min(92vw, 26rem);
   max-height: min(64vh, 24rem);
   overflow-y: auto;
@@ -228,11 +220,26 @@ const STYLE = `
   border-color: rgba(255, 120, 210, 0.6);
   color: rgba(255, 255, 255, 0.95);
 }
+/* Ten in the grid, the other thousand by name. Without this line the
+   picker looks like the whole roster. */
+.presence-more {
+  margin: 0.7rem 0.15rem 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+.presence-more code {
+  font-family: inherit;
+  color: rgba(255, 255, 255, 0.7);
+}
 
 .presence-hud {
   position: fixed;
   right: clamp(1rem, 2.5vw, 2rem);
-  bottom: ${WALK.bottom};
+  /* Cleared of the ASCII ground: its lowest line sits just above the
+     walking line rather than in the texture. */
+  bottom: calc(${WALK.bottom} + ${WALK.label}px + 0.4rem);
   z-index: 9;
   display: flex;
   flex-direction: column;
@@ -240,8 +247,11 @@ const STYLE = `
   gap: 0.2rem;
   font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
   font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.3);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  color: rgba(255, 255, 255, 0.42);
+  /* Its lower lines sit in the same band as the ASCII ground, so they get
+     a ring — wider than the sprite names', since the ground is at its
+     densest by the time it reaches this corner. */
+  text-shadow: 0 0 4px #05050a, 0 0 9px #05050a, 0 0 14px #05050a;
 }
 .presence-hud button {
   background: none;
@@ -291,13 +301,13 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
   const { peers, me, avatarId, setAvatarId, name, setName, say, connected } =
     presence;
   const [open, setOpen] = useState(false);
-  const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const nodes = useRef(new Map<string, HTMLElement>());
   const walkers = useRef(new Map<string, Walker>());
   const peersRef = useRef(peers);
+  const { lines, print } = useChatLog(peers, me);
 
   useEffect(() => {
     peersRef.current = peers;
@@ -370,25 +380,36 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Enter anywhere opens the composer; Escape closes whatever is open.
+  // Enter anywhere puts the cursor in the console; Escape backs out of
+  // whatever is open. The input is always on screen now, so this is about
+  // focus rather than about summoning it.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setComposing(false);
         setOpen(false);
         return;
       }
-      if (e.key !== "Enter" || e.repeat || isTyping(e.target)) return;
+      // `isTyping` reads the event target, which is enough for a real
+      // browser; guard on focus as well so a "/" that arrives while the
+      // console already has the caret can't clobber what is being typed.
+      if (e.repeat || isTyping(e.target)) return;
+      if (document.activeElement === inputRef.current) return;
+      // "/" lands in the console already holding the slash, so a command
+      // can be typed in one go. preventDefault stops the browser's
+      // quick-find swallowing it on the way.
+      if (e.key === "/") {
+        e.preventDefault();
+        setDraft("/");
+        inputRef.current?.focus();
+        return;
+      }
+      if (e.key !== "Enter") return;
       e.preventDefault();
-      setComposing(true);
+      inputRef.current?.focus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  useEffect(() => {
-    if (composing) inputRef.current?.focus();
-  }, [composing]);
 
   // Click-away closes the identity panel.
   useEffect(() => {
@@ -409,41 +430,48 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
     if (w) w.held = held;
   };
   const send = () => {
-    say(draft);
+    const text = draft.trim();
+    if (!text) return;
+    if (text.startsWith("/")) {
+      const result = runCommand(text, {
+        name,
+        setName,
+        setAvatarId,
+        say,
+        print,
+        muted: isKeySoundMuted(),
+        setMuted: setKeySoundMuted,
+      });
+      if (result.hint) print(result.hint);
+      // A typo keeps the composer open with the text still in it — closing
+      // would put the correction two keystrokes further away, and render
+      // the hint into a composer that had just unmounted.
+      if (result.kind === "unknown") return;
+      setDraft("");
+      return;
+    }
+    say(text);
     setDraft("");
-    setComposing(false);
   };
 
   return (
     <div ref={rootRef}>
       <style>{STYLE}</style>
 
-      {composing && (
-        <div className="presence-composer">
-          <input
-            ref={inputRef}
-            className="presence-input"
-            value={draft}
-            maxLength={MAX_MESSAGE}
-            placeholder="say something…"
-            aria-label="Say something"
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                send();
-              }
-            }}
-            onBlur={() => !draft && setComposing(false)}
-          />
-          <span className="presence-hint">⏎ send · esc</span>
-        </div>
-      )}
+      <ChatConsole
+        lines={lines}
+        draft={draft}
+        setDraft={setDraft}
+        onSend={send}
+        inputRef={inputRef}
+        bottom={`calc(${WALK.bottom} + ${SLOT_H}px + 2.2rem)`}
+      />
 
       {open && (
         <div className="presence-panel" aria-label="Your avatar and name">
           <div className="presence-namerow">
             <input
+              data-key-echo
               value={name}
               maxLength={MAX_NAME}
               placeholder="your name"
@@ -455,7 +483,7 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
             />
           </div>
           <div className="presence-grid">
-            {ROSTER.map((a) => (
+            {PICKER.map((a) => (
               <button
                 key={a.id}
                 type="button"
@@ -474,6 +502,9 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
               </button>
             ))}
           </div>
+          <p className="presence-more">
+            or type <code>/gengar</code> in the console — any of the {MAX_DEX}
+          </p>
         </div>
       )}
 
@@ -481,13 +512,14 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
         <button type="button" onClick={() => setOpen((v) => !v)}>
           {parseName(name).display || "set name"}
         </button>
-        <span>⏎ to chat</span>
         {connected && others > 0 && (
           <span>
             {others} other{others === 1 ? "" : "s"} here
           </span>
         )}
       </div>
+
+      <AsciiFloor bottom={WALK.bottom} feet={WALK.label} />
 
       <div className="presence-field">
         {peers.map((p) => {
@@ -500,10 +532,15 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
             if (el) nodes.current.set(p.key, el);
             else nodes.current.delete(p.key);
           };
+          // An emote arrives as the message itself, so it animates the
+          // sprite instead of being read out in a bubble.
+          const emote = isEmote(p.message) ? EMOTES[p.message].className : null;
           const inner = (
             <>
-              {p.message && <span className="presence-bubble">{p.message}</span>}
-              <span className="presence-sprite">
+              {p.message && !emote && (
+                <span className="presence-bubble">{p.message}</span>
+              )}
+              <span className={emote ? `presence-sprite ${emote}` : "presence-sprite"}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={spriteUrl(p.avatarId, shiny)}
