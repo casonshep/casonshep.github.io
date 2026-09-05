@@ -6,7 +6,6 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { SpotLight, useDepthBuffer, useFBO } from "@react-three/drei";
 import { ROOM } from "../keyboard/visualConfig";
 import SpotlightKeyboard, { GLASS_FLAG } from "./SpotlightKeyboard";
-import AsciiSkyline from "./AsciiSkyline";
 import IdentityDisc from "./IdentityDisc";
 import type { KeyboardController } from "../keyboard/Keyboard";
 
@@ -14,6 +13,8 @@ import type { KeyboardController } from "../keyboard/Keyboard";
 // nothing else is lit. Knobs live in visualConfig.ts under ROOM.
 
 const DEG = Math.PI / 180;
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /** Small deterministic PRNG (mulberry32): the dust is laid out during
  *  render, so it must be pure — same motes every time. */
@@ -225,7 +226,9 @@ function CameraRig() {
   );
 
   useEffect(() => {
-    if (reduced) return;
+    // Touch-only devices fire pointermove just for drags, which would snap
+    // the camera to wherever a tap landed; leave them at the framed view.
+    if (reduced || !window.matchMedia("(hover: hover)").matches) return;
     const onMove = (e: PointerEvent) => {
       pointer.current.x = (e.clientX / window.innerWidth) * 2 - 1;
       pointer.current.y = -((e.clientY / window.innerHeight) * 2 - 1);
@@ -253,12 +256,22 @@ function CameraRig() {
       cam.updateProjectionMatrix();
     }
 
-    // Distance at which the board spans `fitWidth` of the view. On tall
-    // viewports also make sure the board's depth fits vertically.
+    // Pull back far enough that the board fits both limits: a share of the
+    // viewport's width — larger the narrower the viewport, so a portrait
+    // phone doesn't render the board as a stamp — and a share of its
+    // height, which is what binds on a short landscape one.
+    const F = ROOM.fit;
+    const t = clamp01(
+      (aspect - F.narrowAspect) / (F.wideAspect - F.narrowAspect),
+    );
+    const fitWidth = F.narrow + (F.wide - F.narrow) * t;
     const halfV = Math.tan((C.fov / 2) * DEG);
     const halfH = halfV * aspect;
-    const w = ROOM.boardWidth / 2 / ROOM.fitWidth;
-    const dist = Math.max(w / halfH, (w * 0.62) / halfV);
+    const half = ROOM.boardWidth / 2;
+    const dist = Math.max(
+      half / (fitWidth * halfH),
+      (half * F.heightRatio) / (F.height * halfV),
+    );
 
     const k = 1 - Math.pow(1 - C.smoothing, dt * 60);
     const wantYaw = pointer.current.x * C.parallaxYaw;
@@ -319,7 +332,6 @@ function Scene({ onController }: { onController?: (c: KeyboardController) => voi
       <fog attach="fog" args={[R.fogColor, R.fogNear, R.fogFar]} />
       <ambientLight intensity={R.ambient} />
       <CameraRig />
-      {ROOM.skyline.enabled && <AsciiSkyline />}
       {R.geometry && <Room />}
       {ROOM.podium.enabled && <Podium />}
       {ROOM.spot.enabled && <Overhead />}
@@ -350,6 +362,7 @@ export default function DarkRoom({
         style={{ touchAction: "none" }}
         onCreated={({ gl }) => {
           gl.shadowMap.autoUpdate = false;
+          gl.toneMappingExposure = ROOM.exposure;
         }}
       >
         <Suspense fallback={null}>

@@ -84,8 +84,29 @@ export const ROOM = {
     },
   },
 
-  /** Fraction of the viewport width the board should span. [0.45 … 0.85] */
-  fitWidth: 0.4,
+  /** How the board is framed in the viewport. The camera pulls back until
+   *  the board fits both limits, so the same scene reads on a desktop
+   *  window and on a phone held either way. */
+  fit: {
+    /** Fraction of the viewport width the board spans on a wide viewport
+     *  (aspect ≥ `wideAspect`). [0.3 … 0.85] */
+    wide: 0.4,
+    /** Same, on a narrow one (aspect ≤ `narrowAspect`) — a portrait phone
+     *  needs most of its width or the board reads as a stamp.
+     *  [0.6 … 1] */
+    narrow: 0.94,
+    /** Aspect ratios the two figures above belong to; in between, the
+     *  fraction is interpolated. [0.4 … 0.8] and [1.1 … 2] */
+    narrowAspect: 0.65,
+    wideAspect: 1.4,
+    /** Fraction of the viewport height the board may span. Binds on short
+     *  viewports (a landscape phone), where width is no longer the tight
+     *  dimension. [0.4 … 0.9] */
+    height: 0.7,
+    /** The board's on-screen height as a fraction of its width, once the
+     *  tilt and camera elevation have foreshortened its depth. [0.4 … 0.9] */
+    heightRatio: 0.72,
+  },
 
   /** How the keyboard is presented on the podium. */
   display: {
@@ -171,7 +192,7 @@ export const ROOM = {
 
   /** Identity-disc stand under the keyboard (Tron). Replaces the podium. */
   disc: {
-    enabled: true,
+    enabled: false,
     /** Outer radius, world units. The board is 30 wide, so ~13 tucks the
      *  disc mostly under it as a base. [10 … 22] */
     radius: 13,
@@ -220,8 +241,8 @@ export const ROOM = {
   },
 
   room: {
-    /** Render the floor, walls and ceiling. Off (the default with the 2D
-     *  skyline) leaves the podium floating in front of the backdrop. */
+    /** Render the floor, walls and ceiling. Off leaves the keyboard and
+     *  its stand floating in the dark. */
     geometry: false,
     /** Floor color. Neutral dark grey so the light pool stays colorless. */
     floorColor: "#1a1a1a",
@@ -372,69 +393,6 @@ export const ROOM = {
     },
   },
 
-  /** ASCII backdrop, drawn flat across the screen behind everything
-   *  (locked to the camera — no perspective). A synthwave/Tron horizon:
-   *  striped neon sun, city silhouette with flickering windows, a glowing
-   *  grid floor rushing toward the viewer, and — like a dot-matrix poster —
-   *  sparse grain texturing the whole field. Rendered as glyphs on the GPU. */
-  skyline: {
-    enabled: true,
-    /** What to draw: a raymarched object shaded into glyphs, or the
-     *  synthwave landscape.
-     *  "disc"   — Tron identity disc, tilted, grooved rings, bright band.
-     *  "gyroid" — a sphere carved into a gyroid lattice.
-     *  "landscape" — sun, city and grid horizon. */
-    scene: "" as "disc" | "gyroid" | "landscape",
-    /** Object size as a fraction of screen height. [0.3 … 1.2] */
-    objectScale: 0.72,
-    /** Object centre height on screen (0 bottom … 1 top). [0.3 … 0.7] */
-    objectY: 0.56,
-    /** Object tilt toward the viewer, degrees. [0 … 80] */
-    objectTilt: 58,
-    /** Object spin about its axis, degrees (static unless animate). */
-    objectSpin: 20,
-    /** Animate (grid rush, drift, flicker, twinkle). Off = a still image. */
-    animate: false,
-    /** Overall brightness. [0.2 … 1.5] */
-    brightness: 0.8,
-    /** Glyph rows down the screen — fewer = chunkier ASCII. [30 … 120] */
-    rows: 96,
-    /** Glyph ramp, darkest → brightest. Any length ≥ 2. */
-    ramp: " .'`^\",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
-    /** Screen height (0 = bottom) where the horizon sits. [0.3 … 0.6] */
-    horizon: 0.44,
-    /** Sun radius as a fraction of screen height. 0 hides it. [0 … 0.35] */
-    sunRadius: 0.2,
-    /** Grain: fraction of cells showing a faint random dot. [0 … 0.25] */
-    grain: 0.07,
-    /** How fast the grid floor rushes toward the viewer. [0 … 2] */
-    gridSpeed: 0.55,
-    /** Grid line density. [3 … 12] */
-    gridDensity: 6,
-    /** Sideways drift of the city, screen-widths per second. [0 … 0.05] */
-    scrollSpeed: 0.006,
-    /** Window flicker rate. [0 … 3] */
-    flicker: 0.8,
-    /** Palette. Set mono: true to render everything in `monoColor`. */
-    mono: true,
-    monoColor: "#d2dbe0",
-    colors: {
-      grid: "#19e6ff",
-      horizonGlow: "#7ff6ff",
-      sunTop: "#ff3ec8",
-      sunBottom: "#ff8a1f",
-      building: "#0d3540",
-      buildingNear: "#071d24",
-      window: "#9ff8ff",
-      star: "#86a9b8",
-      grain: "#3c5560",
-    },
-    /** Random seed — change for a different city. */
-    seed: 7,
-  },
-
-
-
   /** Top-right nav, typed in one character at a time on load — the
    *  matching keys press on the 3D keyboard as it types. */
   nav: {
@@ -454,6 +412,11 @@ export const ROOM = {
     /** CSS font size. */
     fontSize: "clamp(0.8rem, 1.1vw, 0.95rem)",
   },
+
+  /** Renderer exposure. The board is lit only by its own glow, and the
+   *  ASCII backdrop used to add most of the visible light; this brings it
+   *  back without touching the materials. [0.5 … 6] */
+  exposure: 3.2,
 
   /** Pointer cap for device-pixel-ratio: 3 render passes per frame. */
   maxDpr: 1.,
