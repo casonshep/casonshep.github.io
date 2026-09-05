@@ -4,60 +4,58 @@ import { useEffect, useRef, useState } from "react";
 import { ROSTER, avatarById, spriteUrl } from "./roster";
 import { isConfigured, type Presence } from "./usePresence";
 
-// A strip along the bottom of the screen: one Pokémon per open window of
-// the site. Yours is marked and clicking it opens the picker.
+// One Pokémon per open window of the site, wandering along the bottom of
+// the page. Yours is marked and clicking it opens the picker.
 //
-// Presence is owned by Site, not by this component: the room behind the
-// keyboard is tinted to whichever sprite you picked, so the choice has two
-// consumers. Every sprite <img> loads crossOrigin so that the copy in the
-// browser cache is CORS-clean — spriteHue reads these same URLs into a
-// canvas, and a no-cors cache hit would taint it.
+// Presence is owned by Site, not by this component: the plate's glow is
+// coloured to whichever sprite you picked, so the choice has two consumers.
+// Every sprite <img> loads crossOrigin so that the copy in the browser
+// cache is CORS-clean — spriteHue reads these same URLs into a canvas, and
+// a no-cors cache hit would taint it.
+//
+// The walk is simulated per client rather than broadcast: positions are
+// cosmetic, and sending them would mean a stream of realtime messages for
+// something no viewer can tell is unsynchronised. Everyone sees the same
+// *cast*, each in their own arrangement.
 
-const BAR = {
+const WALK = {
   /** Sprite box, px. The Gen-V sprites are ~64px, so past that they blur. */
   size: 56,
-  /** Gap between sprites, px. */
-  gap: 4,
   /** Distance from the bottom edge. */
   bottom: "clamp(0.75rem, 2vh, 1.5rem)",
+  /** Walking speed, px per second. [10 … 60] — 24 is an amble. */
+  speed: 24,
+  /** How long a sprite stands still between strolls, ms. */
+  minPause: 900,
+  maxPause: 6000,
+  /** Length of one stroll, px. Absolute rather than a share of the width:
+   *  as a fraction, a wide monitor turned every stroll into a 20-second
+   *  march and the sprites never stood still. Clamped to the strip. */
+  minStroll: 40,
+  maxStroll: 240,
 } as const;
 
 const STYLE = `
-.presence-bar {
+.presence-field {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: ${BAR.bottom};
+  bottom: ${WALK.bottom};
+  height: ${WALK.size}px;
   z-index: 10;
-  display: flex;
-  justify-content: center;
   pointer-events: none;
 }
-/* The rail scrolls on its own when a crowd shows up: the page itself has
-   overflow:hidden, so it must never be what scrolls. */
-.presence-rail {
-  pointer-events: auto;
-  display: flex;
-  align-items: flex-end;
-  gap: ${BAR.gap}px;
-  max-width: min(100%, 46rem);
-  padding: 0.35rem 0.6rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-  border-radius: 999px;
-  background: rgba(12, 12, 16, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(8px);
-}
-.presence-rail::-webkit-scrollbar { display: none; }
-
 .presence-slot {
-  position: relative;
-  flex: 0 0 auto;
-  width: ${BAR.size}px;
-  height: ${BAR.size}px;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: ${WALK.size}px;
+  height: ${WALK.size}px;
   display: grid;
   place-items: center;
+  /* Positioned by the walk loop via transform; will-change keeps it on its
+     own layer so 60fps of movement never touches layout. */
+  will-change: transform;
 }
 .presence-slot img {
   max-width: 100%;
@@ -94,7 +92,7 @@ const STYLE = `
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(${BAR.bottom} + ${BAR.size}px + 1.4rem);
+  bottom: calc(${WALK.bottom} + ${WALK.size}px + 1.4rem);
   z-index: 11;
   width: min(92vw, 26rem);
   max-height: min(60vh, 22rem);
@@ -133,25 +131,117 @@ const STYLE = `
   color: rgba(255, 255, 255, 0.95);
 }
 .presence-count {
+  position: fixed;
+  right: clamp(1rem, 2.5vw, 2rem);
+  bottom: ${WALK.bottom};
+  z-index: 9;
   pointer-events: none;
-  position: absolute;
-  bottom: calc(100% + 0.4rem);
-  left: 50%;
-  transform: translateX(-50%);
   white-space: nowrap;
   font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
   font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.35);
-}
-@media (prefers-reduced-motion: reduce) {
-  .presence-slot img { animation: none; }
+  color: rgba(255, 255, 255, 0.3);
 }
 `;
+
+/** One sprite's stroll along the bottom edge. */
+type Walker = {
+  /** Current and destination x, px from the left edge. */
+  x: number;
+  targetX: number;
+  /** 1 = walking right. The sprites are drawn facing left, so this flips. */
+  facing: 1 | -1;
+  /** Standing still until this timestamp. */
+  waitUntil: number;
+  /** Your own sprite holds still while hovered, so it can be clicked. */
+  held: boolean;
+};
+
+const rand = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
+
+/** Somewhere else along the strip, far enough to be worth walking to. */
+function pickTarget(from: number, usable: number) {
+  const dist = Math.min(rand(WALK.minStroll, WALK.maxStroll), usable);
+  const right = from + dist <= usable && (from - dist < 0 || Math.random() < 0.5);
+  return Math.max(0, Math.min(usable, from + (right ? dist : -dist)));
+}
 
 export default function PresenceBar({ presence }: { presence: Presence }) {
   const { peers, me, avatarId, setAvatarId, connected } = presence;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const nodes = useRef(new Map<string, HTMLElement>());
+  const walkers = useRef(new Map<string, Walker>());
+  const peersRef = useRef(peers);
+
+  useEffect(() => {
+    peersRef.current = peers;
+  }, [peers]);
+
+  // The walk loop. It writes transforms straight to the DOM: re-rendering
+  // React 60 times a second to move a sprite would be absurd.
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    let last = performance.now();
+
+    const frame = (now: number) => {
+      const dt = Math.min((now - last) / 1000, 0.1);
+      last = now;
+      const usable = Math.max(0, window.innerWidth - WALK.size);
+
+      for (const peer of peersRef.current) {
+        const el = nodes.current.get(peer.key);
+        if (!el) continue;
+        let w = walkers.current.get(peer.key);
+        if (!w) {
+          // New arrival: drop in somewhere random and stand a moment.
+          w = {
+            x: rand(0, usable),
+            targetX: 0,
+            facing: 1,
+            waitUntil: now + rand(WALK.minPause, WALK.maxPause),
+            held: false,
+          };
+          w.targetX = w.x;
+          walkers.current.set(peer.key, w);
+        }
+
+        if (!reduced && !w.held) {
+          if (now >= w.waitUntil) {
+            const dx = w.targetX - w.x;
+            if (Math.abs(dx) < 1) {
+              // Arrived: rest here, then pick somewhere new to amble to.
+              w.x = w.targetX;
+              w.waitUntil = now + rand(WALK.minPause, WALK.maxPause);
+              w.targetX = pickTarget(w.x, usable);
+            } else {
+              w.facing = dx < 0 ? -1 : 1;
+              w.x += Math.sign(dx) * Math.min(Math.abs(dx), WALK.speed * dt);
+            }
+          }
+          // A window resize can strand a sprite past the new right edge.
+          w.x = Math.max(0, Math.min(usable, w.x));
+          w.targetX = Math.max(0, Math.min(usable, w.targetX));
+        }
+
+        el.style.transform = `translate3d(${w.x.toFixed(1)}px,0,0) scaleX(${
+          w.facing > 0 ? -1 : 1
+        })`;
+      }
+
+      // Forget anyone who has left, so the map doesn't grow all session.
+      if (walkers.current.size > peersRef.current.length) {
+        const live = new Set(peersRef.current.map((p) => p.key));
+        for (const key of walkers.current.keys())
+          if (!live.has(key)) walkers.current.delete(key);
+      }
+
+      raf = requestAnimationFrame(frame);
+    };
+
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   // Click-away and Escape close the picker.
   useEffect(() => {
@@ -174,6 +264,10 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
   if (!avatarId) return null;
 
   const others = peers.length - 1;
+  const hold = (key: string, held: boolean) => {
+    const w = walkers.current.get(key);
+    if (w) w.held = held;
+  };
 
   return (
     <div ref={rootRef}>
@@ -203,38 +297,47 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
           ))}
         </div>
       )}
-      <div className="presence-bar">
-        <div className="presence-rail">
-          {connected && others > 0 && (
-            <span className="presence-count">
-              {others} other{others === 1 ? "" : "s"} here
+      {connected && others > 0 && (
+        <span className="presence-count">
+          {others} other{others === 1 ? "" : "s"} here
+        </span>
+      )}
+      <div className="presence-field">
+        {peers.map((p) => {
+          const a = avatarById(p.avatarId);
+          const mine = p.key === me;
+          const ref = (el: HTMLElement | null) => {
+            if (el) nodes.current.set(p.key, el);
+            else nodes.current.delete(p.key);
+          };
+          const sprite = (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={spriteUrl(p.avatarId)} alt={a.name} crossOrigin="anonymous" />
+          );
+          return mine ? (
+            <button
+              key={p.key}
+              ref={ref}
+              type="button"
+              className="presence-slot presence-me"
+              aria-label={`You are ${a.name} — change avatar`}
+              aria-expanded={open}
+              // Stand still while pointed at, or it walks out from under
+              // the cursor before it can be clicked.
+              onPointerEnter={() => hold(p.key, true)}
+              onPointerLeave={() => hold(p.key, false)}
+              onFocus={() => hold(p.key, true)}
+              onBlur={() => hold(p.key, false)}
+              onClick={() => setOpen((v) => !v)}
+            >
+              {sprite}
+            </button>
+          ) : (
+            <span key={p.key} ref={ref} className="presence-slot" title={a.name}>
+              {sprite}
             </span>
-          )}
-          {peers.map((p) => {
-            const a = avatarById(p.avatarId);
-            const mine = p.key === me;
-            const sprite = (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={spriteUrl(p.avatarId)} alt={a.name} crossOrigin="anonymous" />
-            );
-            return mine ? (
-              <button
-                key={p.key}
-                type="button"
-                className="presence-slot presence-me"
-                aria-label={`You are ${a.name} — change avatar`}
-                aria-expanded={open}
-                onClick={() => setOpen((v) => !v)}
-              >
-                {sprite}
-              </button>
-            ) : (
-              <span key={p.key} className="presence-slot" title={a.name}>
-                {sprite}
-              </span>
-            );
-          })}
-        </div>
+          );
+        })}
       </div>
       {!isConfigured && (
         <span hidden>
