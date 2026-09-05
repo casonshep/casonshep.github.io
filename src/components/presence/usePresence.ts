@@ -6,7 +6,7 @@ import {
   type RealtimeChannel,
   type SupabaseClient,
 } from "@supabase/supabase-js";
-import { randomAvatarId } from "./roster";
+import { isRosterId, randomAvatarId } from "./roster";
 
 // Who else has this page open. Supabase Realtime "presence": every client
 // joins one channel and tracks a small payload; the server keeps the roster
@@ -90,7 +90,9 @@ function readAvatar() {
   try {
     const raw = localStorage.getItem(PRESENCE.storageKey);
     const n = raw ? Number(raw) : NaN;
-    if (Number.isFinite(n)) return n;
+    // Re-roll rather than trust the stored id: it may name a Pokémon that
+    // has since been curated off the roster.
+    if (Number.isFinite(n) && isRosterId(n)) return n;
     const picked = randomAvatarId();
     localStorage.setItem(PRESENCE.storageKey, String(picked));
     return picked;
