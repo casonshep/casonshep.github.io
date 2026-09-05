@@ -173,7 +173,7 @@ export default function PresenceBar() {
     <div ref={rootRef}>
       <style>{STYLE}</style>
       {open && (
-        <div className="presence-picker" role="listbox" aria-label="Choose your avatar">
+        <div className="presence-picker" aria-label="Choose your avatar">
           {ROSTER.map((a) => (
             <button
               key={a.id}
@@ -196,7 +196,7 @@ export default function PresenceBar() {
         <div className="presence-rail">
           {connected && others > 0 && (
             <span className="presence-count">
-              {others} other{others === 1 ? "" : ""} here
+              {others} other{others === 1 ? "" : "s"} here
             </span>
           )}
           {peers.map((p) => {

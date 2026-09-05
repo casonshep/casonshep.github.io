@@ -101,8 +101,9 @@ export const ROOM = {
     wideAspect: 1.4,
     /** Fraction of the viewport height the board may span. Binds on short
      *  viewports (a landscape phone), where width is no longer the tight
-     *  dimension. [0.4 … 0.9] */
-    height: 0.7,
+     *  dimension — and where the presence bar along the bottom edge is what
+     *  the board has to clear. [0.4 … 0.9] */
+    height: 0.58,
     /** The board's on-screen height as a fraction of its width, once the
      *  tilt and camera elevation have foreshortened its depth. [0.4 … 0.9] */
     heightRatio: 0.72,

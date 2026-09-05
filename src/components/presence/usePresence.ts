@@ -45,7 +45,6 @@ function getClient() {
   // per-render.
   client ??= createClient(url!, anonKey!, {
     auth: { persistSession: false },
-    realtime: { params: { eventsPerSecond: 4 } },
   });
   return client;
 }
