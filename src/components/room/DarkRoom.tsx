@@ -294,7 +294,14 @@ function CameraRig() {
 
 /** Renders the room (glass hidden) into the glass refraction buffer once
  *  per frame, so the ~70 transmission materials share one capture. */
-function Scene({ onController }: { onController?: (c: KeyboardController) => void }) {
+function Scene({
+  onController,
+  tint,
+}: {
+  onController?: (c: KeyboardController) => void;
+  /** Hue of the chosen sprite, degrees; colours the plate's glow. */
+  tint?: number | null;
+}) {
   // Half-float so the spotlit podium keeps its brightness through the
   // glass: an 8-bit capture clips the pool to flat grey, and every cap
   // then shows that grey instead of a bright refracted highlight.
@@ -341,6 +348,7 @@ function Scene({ onController }: { onController?: (c: KeyboardController) => voi
         buffer={buffer.texture}
         standHeight={standHeight()}
         stand={ROOM.disc.enabled ? <IdentityDisc /> : undefined}
+        hue={tint}
         onController={onController}
       />
     </>
@@ -349,8 +357,10 @@ function Scene({ onController }: { onController?: (c: KeyboardController) => voi
 
 export default function DarkRoom({
   onController,
+  tint,
 }: {
   onController?: (controller: KeyboardController) => void;
+  tint?: number | null;
 }) {
   return (
     <div className="fixed inset-0" style={{ background: ROOM.room.fogColor }}>
@@ -366,7 +376,7 @@ export default function DarkRoom({
         }}
       >
         <Suspense fallback={null}>
-          <Scene onController={onController} />
+          <Scene onController={onController} tint={tint} />
         </Suspense>
       </Canvas>
     </div>

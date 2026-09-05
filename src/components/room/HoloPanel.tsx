@@ -28,6 +28,8 @@ uniform float uContrast;
 uniform float uIntensity;
 uniform float uStretch;
 uniform float uSaturation;
+uniform float uHue;
+uniform float uSpread;
 
 // --- simplex-ish value noise + fbm -------------------------------------
 vec2 hash2(vec2 p) {
@@ -59,8 +61,18 @@ float fbm(vec2 p) {
 
 // Spectral palette: cycles through the rainbow as t increases, so tightly
 // packed t gives the dense colour banding of thin-film interference.
+//
+// uHue recentres that cycle on the hue of the chosen sprite and uSpread
+// narrows how much of the wheel it covers, so the flow reads as that
+// Pokemon's colour. uHue = 0.5 with uSpread = 1 is the identity: the
+// untinted, full-rainbow original (the palette has period 1).
+//
+// Note the palette runs red -> blue -> green, the opposite way round the
+// wheel from HSL's red -> green -> blue, so callers must pass 1 - hue/360
+// rather than hue/360. paletteHue() below does that.
 vec3 spectrum(float t) {
-  vec3 c = 0.5 + 0.5 * cos(6.28318 * (t + vec3(0.0, 0.33, 0.67)));
+  float u = uHue + (fract(t) - 0.5) * uSpread;
+  vec3 c = 0.5 + 0.5 * cos(6.28318 * (u + vec3(0.0, 0.33, 0.67)));
   // Bias toward saturated, luminous colour.
   return pow(c, vec3(0.8));
 }
@@ -92,7 +104,25 @@ void main() {
 }
 `;
 
-export default function HoloPanel({ w, h, y }: { w: number; h: number; y: number }) {
+/** Neutral palette centre: reproduces the original full-rainbow flow. */
+const NEUTRAL_HUE = 0.5;
+
+/** Degrees of HSL hue -> position in the shader's palette, which winds the
+ *  opposite way (see the note above `spectrum`). */
+const paletteHue = (deg: number) => ((1 - deg / 360) % 1 + 1) % 1;
+
+export default function HoloPanel({
+  w,
+  h,
+  y,
+  hue,
+}: {
+  w: number;
+  h: number;
+  y: number;
+  /** Chosen sprite's hue in degrees, or null for the untinted rainbow. */
+  hue?: number | null;
+}) {
   const G = ROOM.glass.plateGlow;
   const mat = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(
@@ -104,11 +134,29 @@ export default function HoloPanel({ w, h, y }: { w: number; h: number; y: number
       uIntensity: { value: G.intensity },
       uStretch: { value: G.stretch },
       uSaturation: { value: G.saturation },
+      uHue: { value: NEUTRAL_HUE },
+      uSpread: { value: 1 },
     }),
     [G.scale, G.stripes, G.contrast, G.intensity, G.stretch, G.saturation],
   );
-  useFrame((state) => {
-    if (mat.current) mat.current.uniforms.uTime.value = state.clock.elapsedTime * G.speed;
+  useFrame((state, dt) => {
+    const m = mat.current;
+    if (!m) return;
+    m.uniforms.uTime.value = state.clock.elapsedTime * G.speed;
+
+    const T = G.tint;
+    const wantHue = T.enabled && hue != null ? paletteHue(hue) : NEUTRAL_HUE;
+    const wantSpread = T.enabled && hue != null ? T.spread : 1;
+    const k = 1 - Math.pow(1 - T.smoothing, Math.min(dt, 0.1) * 60);
+
+    // Hue is an angle: ease along the short way round, or a red sprite
+    // following a magenta one would sweep back through the whole wheel.
+    const cur = m.uniforms.uHue.value as number;
+    let delta = wantHue - cur;
+    delta -= Math.round(delta);
+    m.uniforms.uHue.value = cur + delta * k;
+    m.uniforms.uSpread.value +=
+      (wantSpread - (m.uniforms.uSpread.value as number)) * k;
   });
   return (
     <mesh position={[0, y, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>

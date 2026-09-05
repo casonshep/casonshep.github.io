@@ -337,6 +337,19 @@ export const ROOM = {
       stretch: 2.5,
       /** Colour saturation. [0 … 1] */
       saturation: 1,
+      /** The flow takes its colour from the sprite you picked in the
+       *  presence bar. */
+      tint: {
+        enabled: true,
+        /** How much of the colour wheel one cycle of the flow covers.
+         *  1 = the full rainbow, merely rotated so your sprite's hue leads.
+         *  Lower narrows it to a band around that hue — 0.3 reads clearly
+         *  as "Charmander is orange" while keeping some spectral life.
+         *  [0.12 … 1] */
+        spread: 0.3,
+        /** Crossfade to a new pick, per frame at 60fps. [0.01 … 0.2] */
+        smoothing: 0.04,
+      },
     },
 
     /** The colors the glass reflects (procedural env map, glass only).

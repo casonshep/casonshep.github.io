@@ -2,10 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ROSTER, avatarById, spriteUrl } from "./roster";
-import { usePresence, isConfigured } from "./usePresence";
+import { isConfigured, type Presence } from "./usePresence";
 
 // A strip along the bottom of the screen: one Pokémon per open window of
 // the site. Yours is marked and clicking it opens the picker.
+//
+// Presence is owned by Site, not by this component: the room behind the
+// keyboard is tinted to whichever sprite you picked, so the choice has two
+// consumers. Every sprite <img> loads crossOrigin so that the copy in the
+// browser cache is CORS-clean — spriteHue reads these same URLs into a
+// canvas, and a no-cors cache hit would taint it.
 
 const BAR = {
   /** Sprite box, px. The Gen-V sprites are ~64px, so past that they blur. */
@@ -142,8 +148,8 @@ const STYLE = `
 }
 `;
 
-export default function PresenceBar() {
-  const { peers, me, avatarId, setAvatarId, connected } = usePresence();
+export default function PresenceBar({ presence }: { presence: Presence }) {
+  const { peers, me, avatarId, setAvatarId, connected } = presence;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -186,7 +192,12 @@ export default function PresenceBar() {
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={spriteUrl(a.id)} alt="" loading="lazy" />
+              <img
+                src={spriteUrl(a.id)}
+                alt=""
+                loading="lazy"
+                crossOrigin="anonymous"
+              />
               {a.name}
             </button>
           ))}
@@ -204,7 +215,7 @@ export default function PresenceBar() {
             const mine = p.key === me;
             const sprite = (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={spriteUrl(p.avatarId)} alt={a.name} />
+              <img src={spriteUrl(p.avatarId)} alt={a.name} crossOrigin="anonymous" />
             );
             return mine ? (
               <button

@@ -273,10 +273,15 @@ const SpotlightKeyboard = forwardRef<
     standHeight?: number;
     /** The stand itself; spins with the keyboard. */
     stand?: ReactNode;
+    /** Chosen sprite's hue in degrees; colours the plate's glow. */
+    hue?: number | null;
     onController?: (controller: KeyboardController) => void;
   }
 >(
-  function SpotlightKeyboard({ buffer, standHeight = 0, stand, onController }, ref) {
+  function SpotlightKeyboard(
+    { buffer, standHeight = 0, stand, hue, onController },
+    ref,
+  ) {
     const board = useMemo(() => layoutBoard(ROOM.boardWidth), []);
 
     const triggers = useRef<Map<string, Trigger>>(new Map());
@@ -342,6 +347,7 @@ const SpotlightKeyboard = forwardRef<
             w={board.w * ROOM.board.plateWidthFactor * 0.98}
             h={board.h * ROOM.board.plateHeightFactor * 0.98}
             y={0.02}
+            hue={hue}
           />
         )}
         <BasePlate w={board.w} h={board.h} depth={board.depth} buffer={buffer} envMap={envMap} />
