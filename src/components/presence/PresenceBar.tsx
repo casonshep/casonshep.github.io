@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ROSTER, avatarById, spriteUrl } from "./roster";
-import { MAX_MESSAGE, MAX_NAME, isConfigured, type Presence } from "./usePresence";
+import {
+  MAX_MESSAGE,
+  MAX_NAME,
+  isConfigured,
+  parseName,
+  type Presence,
+} from "./usePresence";
 
 // One Pokémon per open window of the site, wandering along the bottom of
 // the page, captioned with its owner's name and whatever they last said.
@@ -459,7 +465,7 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={spriteUrl(a.id)}
+                  src={spriteUrl(a.id, parseName(name).shiny)}
                   alt=""
                   loading="lazy"
                   crossOrigin="anonymous"
@@ -473,7 +479,7 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
 
       <div className="presence-hud">
         <button type="button" onClick={() => setOpen((v) => !v)}>
-          {name || "set name"}
+          {parseName(name).display || "set name"}
         </button>
         <span>⏎ to chat</span>
         {connected && others > 0 && (
@@ -487,6 +493,9 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
         {peers.map((p) => {
           const a = avatarById(p.avatarId);
           const mine = p.key === me;
+          // The shiny flag and the drawn name both come out of the typed
+          // name, so peers need no extra field to render it correctly.
+          const { display, shiny } = parseName(p.name);
           const ref = (el: HTMLElement | null) => {
             if (el) nodes.current.set(p.key, el);
             else nodes.current.delete(p.key);
@@ -496,9 +505,13 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
               {p.message && <span className="presence-bubble">{p.message}</span>}
               <span className="presence-sprite">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={spriteUrl(p.avatarId)} alt={a.name} crossOrigin="anonymous" />
+                <img
+                  src={spriteUrl(p.avatarId, shiny)}
+                  alt={shiny ? `Shiny ${a.name}` : a.name}
+                  crossOrigin="anonymous"
+                />
               </span>
-              {p.name && <span className="presence-name">{p.name}</span>}
+              {display && <span className="presence-name">{display}</span>}
             </>
           );
           return mine ? (
@@ -507,7 +520,7 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
               ref={ref}
               type="button"
               className="presence-slot presence-me presence-you"
-              aria-label={`You are ${p.name || a.name} — change name or avatar`}
+              aria-label={`You are ${display || a.name} — change name or avatar`}
               aria-expanded={open}
               // Stand still while pointed at, or it walks out from under
               // the cursor before it can be clicked.
@@ -520,7 +533,7 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
               {inner}
             </button>
           ) : (
-            <span key={p.key} ref={ref} className="presence-slot" title={p.name || a.name}>
+            <span key={p.key} ref={ref} className="presence-slot" title={display || a.name}>
               {inner}
             </span>
           );

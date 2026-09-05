@@ -28,8 +28,24 @@ export const PRESENCE = {
 export const MESSAGE_TTL = 7000;
 /** Longest message accepted, characters. */
 export const MAX_MESSAGE = 140;
-/** Longest display name, characters. */
-export const MAX_NAME = 18;
+/** Longest name as typed, characters. Roomy enough that the shiny suffix
+ *  below still leaves a usable name. */
+export const MAX_NAME = 24;
+
+/** Type your name with this on the end and your sprite turns shiny. The
+ *  suffix rides along inside `name` rather than as its own presence field:
+ *  every client parses the same string, so there is nothing extra to keep
+ *  in sync, and the suffix itself is stripped before the name is drawn. */
+export const SHINY_SUFFIX = "/shiny";
+
+export type ParsedName = { display: string; shiny: boolean };
+
+export function parseName(raw: string): ParsedName {
+  const name = (raw ?? "").trim();
+  if (name.toLowerCase().endsWith(SHINY_SUFFIX))
+    return { display: name.slice(0, -SHINY_SUFFIX.length).trim(), shiny: true };
+  return { display: name, shiny: false };
+}
 
 /** One visitor's tracked payload. */
 export type Peer = {

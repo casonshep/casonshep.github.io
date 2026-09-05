@@ -82,10 +82,12 @@ const SPRITES =
   "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon";
 
 /** Animated Gen-V sprite, with the static one as the fallback for anything
- *  past Gen 5 that slips into the roster. */
-export function spriteUrl(id: number) {
+ *  past Gen 5 that slips into the roster. Every roster entry has a shiny
+ *  variant in the same set. */
+export function spriteUrl(id: number, shiny = false) {
+  const variant = shiny ? "animated/shiny" : "animated";
   return id <= MAX_ANIMATED_ID
-    ? `${SPRITES}/versions/generation-v/black-white/animated/${id}.gif`
+    ? `${SPRITES}/versions/generation-v/black-white/${variant}/${id}.gif`
     : `${SPRITES}/${id}.png`;
 }
 
