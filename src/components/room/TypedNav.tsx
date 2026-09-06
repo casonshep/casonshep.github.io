@@ -10,7 +10,9 @@ import { ROOM } from "../keyboard/visualConfig";
 //
 // Clicking one types it on the board a second time and raises its panel —
 // the nav resolves inside the room rather than navigating away from it, so
-// there is one screen and no router.
+// there is one screen and no router. The exception is an item carrying an
+// `href` (art): that one is a page of its own, and the nav simply goes
+// there.
 
 const STYLE = `
 @keyframes nav-cursor-blink {
@@ -128,6 +130,12 @@ export default function TypedNav({
         const complete = text.length === it.label.length && activeItem !== i;
         const showCursor = started && activeItem === i;
         if (!text && !showCursor) return null;
+        if (complete && it.href)
+          return (
+            <a key={it.label} className="nav-link" href={it.href}>
+              {text}
+            </a>
+          );
         return complete ? (
           <button
             key={it.label}

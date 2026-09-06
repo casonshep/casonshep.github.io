@@ -12,7 +12,8 @@ export type Panel = {
 };
 
 /** Keyed by nav label, so `ROOM.nav.items` stays the single list of what
- *  the nav says and in what order. */
+ *  the nav says and in what order. An item with an `href` has no entry
+ *  here — it opens a page instead of a panel. */
 const PANELS: Record<string, Panel> = {
   me: {
     title: "me",
@@ -28,10 +29,6 @@ const PANELS: Record<string, Panel> = {
       "Placeholder. Two or three things worth showing, one line each.",
     ],
     links: [{ label: "github", href: "https://github.com" }],
-  },
-  art: {
-    title: "art",
-    lines: ["Placeholder. What you make when it isn't code."],
   },
 };
 
