@@ -1,0 +1,11 @@
+miniq.glb
+
+"Pokemon MiniQ" by pokedigilucas
+https://sketchfab.com/3d-models/pokemon-miniq-4c186473d2804f8e9af616a822d64e14
+Author: https://sketchfab.com/pokedigilucas
+Licensed under CC BY 4.0: http://creativecommons.org/licenses/by/4.0/
+
+Changes: none to the file. Static model; the walk is procedural (code).
+
+The character is a Pokémon design (c) Nintendo / Creatures / GAME FREAK.
+This is a fan-made model, used non-commercially.

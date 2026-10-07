@@ -177,13 +177,18 @@ export default function WorldText() {
         <footer id="credits" className="wt-credits">
           <p>
             Character: “
+            <a href="https://sketchfab.com/3d-models/pokemon-miniq-4c186473d2804f8e9af616a822d64e14">
+              Pokemon MiniQ
+            </a>
+            ” by pokedigilucas, licensed{" "}
+            <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
+            ; animated in code. Also included: “
             <a href="https://sketchfab.com/3d-models/luxray-7c6a2c3957d7437691a3f8125f362756">
               Luxray
             </a>
-            ” by Gianmarco (GianmArt), licensed{" "}
-            <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
-            ; repacked and compressed. Luxray is a Pokémon design © Nintendo /
-            Creatures / GAME FREAK — a fan-made model, used non-commercially.
+            ” by Gianmarco (GianmArt), CC BY 4.0, repacked and compressed. Both
+            are fan-made models of Pokémon designs © Nintendo / Creatures / GAME
+            FREAK, used non-commercially.
           </p>
           <p>Title font: Helvetiker Bold, MgOpen licence. Label font: Geist, SIL Open Font License.</p>
         </footer>
