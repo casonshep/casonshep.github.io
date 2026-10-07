@@ -6,6 +6,7 @@ import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box3, Color, Euler, Matrix4, Quaternion, Vector3 } from "three";
 import type { Mesh } from "three";
+import { PAGE_LOOK } from "./Page";
 import { sectionBounds } from "./playerState";
 import type { Section, Vec3 } from "./types";
 import { WORLD } from "./worldConfig";
@@ -33,17 +34,19 @@ const BLOCK = {
   titleSize: 2.2,
   /** Children are drawn at this fraction of the parent's size. */
   childScale: 0.6,
-  /** Few curve segments — glyph outlines stay faceted, to fit the low-poly look. */
-  curveSegments: 3,
+  /** Glyph outline smoothness. */
+  curveSegments: 6,
   /** Plinth under the letters, as a fraction of the letter height. */
   plinth: 0.18,
   /** Body copy: size, ink, and gap in front of the title, metres. */
   bodySize: 0.36,
-  bodyInk: "#24324a",
+  bodyInk: "#a9a9b8",
   bodyGap: 0.7,
   /** Body copy never wraps narrower than this, even under a short title. */
   bodyMinWidth: 7,
   font: "/fonts/helvetiker_bold.typeface.json",
+  /** How much the letters light themselves in their own colour. */
+  glow: 0.35,
 } as const;
 
 /** Body-local bounds of the title, once measured. The mesh is re-centred on
@@ -54,13 +57,6 @@ type Measure = {
   /** Width (x), letter height (y), depth (z). */
   size: Vec3;
 };
-
-/** Quarter turn about y that makes the title read right-way-up from spawn:
- *  the block's local +z (where the body copy sits) faces the spawn point. */
-function yawToward(from: Vec3, to: Vec3): number {
-  const angle = Math.atan2(to[0] - from[0], to[2] - from[2]);
-  return Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
-}
 
 function shade(color: string, by: number): string {
   return `#${new Color(color).multiplyScalar(by).getHexString()}`;
@@ -147,18 +143,24 @@ function Block({
         receiveShadow
       >
         {section.title}
-        <meshStandardMaterial color={color} flatShading />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={BLOCK.glow}
+          roughness={0.45}
+        />
       </Text3D>
 
       {measure && (
         <mesh position={[0, (h * BLOCK.plinth) / 2, 0]} receiveShadow>
           <boxGeometry args={[w, h * BLOCK.plinth, d]} />
-          <meshStandardMaterial color={shade(color, 0.72)} flatShading />
+          <meshStandardMaterial color={shade(color, 0.35)} roughness={0.6} />
         </mesh>
       )}
 
       {measure && section.lines.length > 0 && (
         <Text
+          font={PAGE_LOOK.font}
           position={[0, 0.02, d / 2 + BLOCK.bodyGap * scale]}
           rotation={[-Math.PI / 2, 0, 0]}
           fontSize={BLOCK.bodySize * Math.max(scale, 0.75)}
@@ -178,24 +180,22 @@ function Block({
 
 /** One section as a climbable block, plus its children as smaller blocks
  *  around it. Children are siblings in the physics world — rapier doesn't
- *  nest rigid bodies — placed relative to the parent and turned with it. */
+ *  nest rigid bodies — placed relative to the parent. Every block reads the
+ *  same way, like text on a page: down the page toward −z. */
 export default function SectionBlock({ section }: { section: Section }) {
-  const yaw = useMemo(() => yawToward(section.position, WORLD.spawn), [section.position]);
-
   const children = useMemo(() => {
-    const turn = new Quaternion().setFromEuler(new Euler(0, yaw, 0));
-    const base = new Vector3(...section.position);
+    const [bx, by, bz] = section.position;
     return (section.children ?? []).map((child) => ({
       child,
-      origin: new Vector3(...child.position).applyQuaternion(turn).add(base).toArray() as Vec3,
+      origin: [bx + child.position[0], by + child.position[1], bz + child.position[2]] as Vec3,
     }));
-  }, [section.children, section.position, yaw]);
+  }, [section.children, section.position]);
 
   return (
     <>
-      <Block section={section} origin={section.position} yaw={yaw} scale={1} />
+      <Block section={section} origin={section.position} yaw={0} scale={1} />
       {children.map(({ child, origin }) => (
-        <Block key={child.id} section={child} origin={origin} yaw={yaw} scale={BLOCK.childScale} />
+        <Block key={child.id} section={child} origin={origin} yaw={0} scale={BLOCK.childScale} />
       ))}
     </>
   );

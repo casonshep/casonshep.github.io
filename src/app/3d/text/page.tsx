@@ -185,7 +185,7 @@ export default function WorldText() {
             ; repacked and compressed. Luxray is a Pokémon design © Nintendo /
             Creatures / GAME FREAK — a fan-made model, used non-commercially.
           </p>
-          <p>Title font: Helvetiker Bold, MgOpen licence.</p>
+          <p>Title font: Helvetiker Bold, MgOpen licence. Label font: Geist, SIL Open Font License.</p>
         </footer>
       </main>
     </div>

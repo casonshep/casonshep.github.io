@@ -3,32 +3,32 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { Stars } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
-import Bounds from "./Bounds";
-import Ground from "./Ground";
+import Page from "./Page";
 import Player from "./Player";
 import SectionBlocks from "./SectionBlocks";
 import { playerState } from "./playerState";
 import { useIsTouch } from "./useIsTouch";
 
-// A bright, low-poly afternoon: pale sky, a warm sun that follows the
-// player so its shadow box only has to cover the area in view, a cool
-// sky/ground fill, and fog in the sky's colour so the meadow fades out
-// instead of ending.
+// Night: a near-black void with faint stars, a cool key light that follows
+// the player so its shadow box only has to cover the area in view, a dim
+// blue fill, and fog in the void's colour so the far end of the page fades
+// in as you walk down it.
 
-/** Sky and fog colour; Landscape paints the page behind the canvas with it too. */
-export const SKY = "#bfe3ff";
+/** Void and fog colour; Landscape paints the page behind the canvas with it too. */
+export const SKY = "#06060a";
 
 const LOOK = {
   sky: SKY,
-  fogNear: 30,
-  fogFar: 85,
-  hemiSky: "#e4f3ff",
-  hemiGround: "#b9d99a",
-  hemiIntensity: 1.3,
-  sunColor: "#fff0d4",
-  sunIntensity: 2.4,
-  /** Sun direction from the player: high, from the front-right. */
+  fogNear: 28,
+  fogFar: 75,
+  hemiSky: "#5a6491",
+  hemiGround: "#0a0a10",
+  hemiIntensity: 0.9,
+  sunColor: "#dfe4ff",
+  sunIntensity: 1.6,
+  /** Key light direction from the player: high, from the front-right. */
   sunOffset: [14, 26, 10] as const,
   /** Half-width of the square the shadow camera covers around the player. */
   shadowExtent: 24,
@@ -98,9 +98,9 @@ export default function World() {
       <fog attach="fog" args={[LOOK.sky, LOOK.fogNear, LOOK.fogFar]} />
       <hemisphereLight args={[LOOK.hemiSky, LOOK.hemiGround, LOOK.hemiIntensity]} />
       <Sun />
+      <Stars radius={140} depth={60} count={2500} factor={3} saturation={0} fade speed={0.3} />
       <Physics>
-        <Ground />
-        <Bounds />
+        <Page />
         <Player />
         <SectionBlocks />
       </Physics>
