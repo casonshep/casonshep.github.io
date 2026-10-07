@@ -67,10 +67,11 @@ const RESPAWN_Y = -20;
 const CAMERA = {
   /** Look-at height above the body centre. */
   lookHeight: 0.6,
-  /** Spawn view: behind (+Z) and above the player. */
-  offset: [0, 3.5, 7.5] as const,
+  /** Spawn view: above and behind (+Z) the player, looking down at the
+   *  page the way you'd look at a screen — about 50° below the horizon. */
+  offset: [0, 11, 8] as const,
   minDistance: 3,
-  maxDistance: 16,
+  maxDistance: 26,
   minPolarAngle: 0.35,
   /** Just above the horizon, so the camera never looks up from underground. */
   maxPolarAngle: 1.4,

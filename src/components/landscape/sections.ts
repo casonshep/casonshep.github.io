@@ -1,101 +1,140 @@
 import type { Section } from "./types";
 
-// Everything the landscape says, in one file — the same split the room uses
-// (navContent.ts / visualConfig.ts): this module says *what* is on the page
-// and where, the components only know how to draw it. /3d/text/ reads the
-// same list, so editing it here changes both on reload.
+// Everything the page says, in one file — the same split the room uses
+// (navContent.ts / visualConfig.ts): this module says *what* is on the page,
+// Layout.tsx only knows how to draw each kind of section. /3d/text/ reads
+// the same list, so editing it here changes both on reload.
 //
-// >>> Placeholder copy. Rewrite every `lines` entry in your own words. <<<
+// >>> Placeholder copy. Rewrite it in your own words. <<<
 //
-// Layout: the world is a web page lying flat (see worldConfig.ts). The page
-// is 36 m across (x from −18 to 18) and runs from the header at z = 8 down
-// to the footer at z = −92; the player spawns just under the header, facing
-// down the page. Sections stack down it like a scrolling site — hero, a row
-// of project cards, two columns, a closing block — between the hairline
-// dividers drawn in Page.tsx (DIVIDERS). Keep blocks inside x ±16, or
-// they'll hang off the edge.
-//
-// `children` are smaller blocks; their `position` is relative to the
-// parent's, and their ids must be unique across the whole list.
+// Layout: the page is a dark site lying flat (see worldConfig.ts and
+// Page.tsx). The content column runs from x = −13 to 13; the player spawns
+// under the header at z ≈ 1 and walks "down" the page toward −z. Each
+// section's `position` is its heading's left edge; its content (rows,
+// cards, paragraph) runs from there back toward the player, so on screen
+// it reads heading-above-body like any web page. Leave ~14 m between
+// headings for a list or grid, ~12 m for a short text block.
 
 export const SECTIONS: Section[] = [
   {
     id: "me",
-    title: "me",
+    kind: "hero",
+    title: "I'm Cason.",
+    meta: "hello, world —",
     lines: [
-      "Placeholder. Hi — I'm Cason. I build small, odd, hand-made things for the web.",
-      "This is my site, laid flat. Walk down the page; mind the edges.",
-    ],
-    links: [{ label: "email", href: "mailto:cason@axlemobility.com" }],
-    position: [0, 0, -9],
-    color: "#ff9f6e",
-  },
-  {
-    id: "projects",
-    title: "projects",
-    lines: [
-      "Placeholder. Things I've built and kept. The row below is the highlights.",
-      "Climb any of them for the one-line version.",
-    ],
-    links: [{ label: "github", href: "https://github.com/casonshep" }],
-    position: [0, 0, -26],
-    color: "#8c9bff",
-    children: [
-      {
-        id: "projects-room",
-        title: "dark room",
-        lines: ["Placeholder. The home page: a keyboard under a spotlight that types the nav for you."],
-        links: [{ label: "visit", href: "/" }],
-        position: [-11.5, 0, -11],
-        color: "#aab4ff",
-      },
-      {
-        id: "projects-wall",
-        title: "art wall",
-        lines: ["Placeholder. ASCII plates that resolve into the real piece under your cursor."],
-        links: [{ label: "visit", href: "/art/" }],
-        position: [0, 0, -11],
-        color: "#b9a6ff",
-      },
-      {
-        id: "projects-presence",
-        title: "presence",
-        lines: ["Placeholder. Everyone on the site at once, as a little row of sprites."],
-        position: [11.5, 0, -11],
-        color: "#9fd0ff",
-      },
-    ],
-  },
-  {
-    id: "art",
-    title: "art",
-    lines: [
-      "Placeholder. Pictures I've made, hung on a wall that pretends to be a terminal.",
-    ],
-    links: [{ label: "the wall", href: "/art/" }],
-    position: [-9, 0, -54],
-    color: "#ff7eb6",
-  },
-  {
-    id: "blog",
-    title: "blog",
-    lines: [
-      "Placeholder. Notes from building this site, mostly about what didn't work the first time.",
-    ],
-    position: [9, 0, -54],
-    color: "#5fd4c8",
-  },
-  {
-    id: "contact",
-    title: "contact",
-    lines: [
-      "Placeholder. The fastest way to reach me is email; the slowest is standing on this block.",
+      "I build small, odd, hand-made things for the web, and I'm currently making this one walkable.",
+      "Off the clock: coffee, keyboards, and drawing things I can't code.",
     ],
     links: [
       { label: "email", href: "mailto:cason@axlemobility.com" },
       { label: "github", href: "https://github.com/casonshep" },
     ],
-    position: [0, 0, -75],
-    color: "#c19bff",
+    position: [-13, 0, -10],
+    children: [
+      {
+        id: "me-now",
+        title: "Building a site you can walk on",
+        meta: "now · october 2026",
+        lines: ["Placeholder. This page, as it happens — a dark personal site laid flat and given a floor."],
+        tags: ["three.js", "r3f", "rapier"],
+      },
+    ],
+  },
+  {
+    id: "writing",
+    kind: "list",
+    title: "Writing",
+    lines: ["Placeholder. Notes from building things, mostly about what didn't work the first time."],
+    links: [{ label: "all posts", href: "/3d/text/#writing" }],
+    position: [-13, 0, -27],
+    children: [
+      {
+        id: "post-walkable",
+        title: "Making a website you can walk on",
+        meta: "Oct 06",
+        lines: ["Placeholder. Physics, a Pokémon, and why the letters lie on their backs."],
+        tags: ["#3d", "#react"],
+      },
+      {
+        id: "post-keyboard",
+        title: "A glass keyboard that types the nav",
+        meta: "Sep 05",
+        lines: ["Placeholder. The home page, and the spotlight that refuses to be subtle."],
+        tags: ["#three", "#design"],
+      },
+      {
+        id: "post-ascii",
+        title: "Art as ASCII, resolved on hover",
+        meta: "Sep 06",
+        lines: ["Placeholder. Turning pictures into glyphs and back again."],
+        tags: ["#canvas"],
+      },
+      {
+        id: "post-presence",
+        title: "Everyone on the site at once",
+        meta: "Aug 31",
+        lines: ["Placeholder. Realtime presence with sprites, on a static host."],
+        tags: ["#supabase", "#realtime"],
+      },
+    ],
+  },
+  {
+    id: "projects",
+    kind: "cards",
+    title: "Projects",
+    lines: ["Placeholder. Things I've built and kept. Hop onto one."],
+    links: [{ label: "github", href: "https://github.com/casonshep" }],
+    position: [-13, 0, -43],
+    children: [
+      {
+        id: "projects-room",
+        title: "Dark room",
+        meta: "projects · 2026",
+        lines: ["The home page: a glass keyboard under a spotlight."],
+        links: [{ label: "visit", href: "/" }],
+        tags: ["r3f", "audio"],
+      },
+      {
+        id: "projects-wall",
+        title: "Art wall",
+        meta: "projects · 2026",
+        lines: ["ASCII plates that resolve into the real piece."],
+        links: [{ label: "visit", href: "/art/" }],
+        tags: ["canvas"],
+      },
+      {
+        id: "projects-presence",
+        title: "Presence",
+        meta: "projects · 2026",
+        lines: ["Everyone on the site at once, as sprites."],
+        tags: ["realtime"],
+      },
+    ],
+  },
+  {
+    id: "art",
+    kind: "gallery",
+    title: "Art",
+    lines: ["Placeholder. Pictures I've made. Better on the wall — the link's below."],
+    links: [{ label: "the wall", href: "/art/" }],
+    position: [-13, 0, -59],
+    children: [
+      { id: "art-fold", title: "fold", meta: "art · 2026", lines: ["Placeholder piece."], image: "/artwork/01-fold.png" },
+      { id: "art-tide", title: "tide", meta: "art · 2026", lines: ["Placeholder piece."], image: "/artwork/02-tide.png" },
+      { id: "art-arch", title: "arch", meta: "art · 2026", lines: ["Placeholder piece."], image: "/artwork/05-arch.png" },
+    ],
+  },
+  {
+    id: "contact",
+    kind: "text",
+    title: "Say hi",
+    lines: [
+      "Placeholder. The fastest way to reach me is email; the slowest is standing on this heading.",
+    ],
+    links: [
+      { label: "email", href: "mailto:cason@axlemobility.com" },
+      { label: "github", href: "https://github.com/casonshep" },
+    ],
+    position: [-13, 0, -71],
   },
 ];

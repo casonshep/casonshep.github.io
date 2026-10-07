@@ -1,135 +1,88 @@
 "use client";
 
-import { Grid, Text } from "@react-three/drei";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
+import { Flat, LIFT, Rule, Slab, rowOffsets } from "./Flat";
+import { COLUMN, FONT, INK } from "./theme";
 import { WORLD } from "./worldConfig";
 
-// The floor is a web page: a dark slab floating in the void, with a header
-// bar along its top edge, hairline dividers between sections, a footer, and
-// a glowing rim so you can see where it ends. Nothing fences it in — walk
+// The page itself: a dark slab floating in the void, with the site's chrome
+// printed on it — a pill nav at the top left and a couple of links at the
+// right, and an ornamented footer at the bottom. Nothing fences it in; walk
 // off a side and you fall, and Player puts you back at spawn.
 //
-// What the page *says* lives in sections.ts; this file only draws the
-// chrome around it. The header nav and footer are labels, not links.
+// What the page *says* lives in sections.ts and Layout.tsx; this file only
+// draws the frame around it. The nav and footer are print, not links.
 
-export const PAGE_LOOK = {
-  surface: "#121218",
-  /** The glowing rim that shows where the page ends. */
-  edge: "#6c7cff",
-  headerFill: "#1b1b24",
-  grid: "#1c1c26",
-  gridMajor: "#2a2a3a",
-  ink: "#e6e6ee",
-  inkDim: "#7d7d8c",
-  /** Flat text face; served locally so the scene needs no font CDN. */
-  font: "/fonts/Geist-Regular.ttf",
-};
-
-/** Header depth (z) and how far it stands proud of the page. */
-const HEADER = { depth: 4.5, rise: 0.12 };
-const FOOTER_DEPTH = 6;
-/** z of the hairlines between sections, top to bottom (see sections.ts). */
-const DIVIDERS = [-19, -47, -66];
-const NAV = ["me", "projects", "art", "blog", "contact"];
+const NAV = ["cason", "writing", "projects", "art", "say hi"];
+const NAV_RIGHT = ["github", "email", "text version"];
 
 const { width, top, bottom, thickness } = WORLD.page;
 const length = top - bottom;
 const midZ = (top + bottom) / 2;
 const half = width / 2;
 
-type V3 = [number, number, number];
-
-/** Flat text lying face-up on the page, reading toward −z. */
-function Label({
-  children,
-  position,
-  size,
-  color,
-  anchorX = "center",
-}: {
-  children: string;
-  position: V3;
-  size: number;
-  color: string;
-  anchorX?: "left" | "center" | "right";
-}) {
-  return (
-    <Text
-      font={PAGE_LOOK.font}
-      position={position}
-      rotation={[-Math.PI / 2, 0, 0]}
-      fontSize={size}
-      color={color}
-      anchorX={anchorX}
-      anchorY="middle"
-      letterSpacing={0.04}
-    >
-      {children}
-    </Text>
-  );
-}
-
-/** A thin glowing bar lying on the page. */
-function Line({ position, size, color, glow }: { position: V3; size: V3; color: string; glow: number }) {
-  return (
-    <mesh position={position}>
-      <boxGeometry args={size} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} />
-    </mesh>
-  );
-}
-
-function Rim() {
-  const y = 0.01;
-  const t = 0.08;
-  const c = PAGE_LOOK.edge;
-  return (
-    <>
-      <Line position={[0, y, top]} size={[width, 0.02, t]} color={c} glow={1.6} />
-      <Line position={[0, y, bottom]} size={[width, 0.02, t]} color={c} glow={1.6} />
-      <Line position={[-half, y, midZ]} size={[t, 0.02, length]} color={c} glow={1.6} />
-      <Line position={[half, y, midZ]} size={[t, 0.02, length]} color={c} glow={1.6} />
-    </>
-  );
-}
+/** The header row's centre line. */
+const HEADER_Z = top - 2.4;
 
 function Header() {
-  const z = top - HEADER.depth / 2;
-  const y = HEADER.rise + 0.01;
+  const size = 0.42;
+  // Mono-ish spacing estimate for the pill's width; the nav is in sans.
+  const advance = size * 0.56;
+  const gap = 1.1;
+  const words = NAV.map((w) => w.length * advance);
+  const pad = 0.8;
+  const pillW = words.reduce((a, b) => a + b, 0) + gap * (NAV.length - 1) + pad * 2;
+  const left = -COLUMN;
+  const xs = rowOffsets(words, left + pad, gap);
   return (
     <>
-      <mesh position={[0, HEADER.rise / 2, z]} receiveShadow>
-        <boxGeometry args={[width, HEADER.rise, HEADER.depth]} />
-        <meshStandardMaterial color={PAGE_LOOK.headerFill} />
-      </mesh>
-      <Label position={[-half + 1.5, y, z]} size={1.1} color={PAGE_LOOK.ink} anchorX="left">
-        cason
-      </Label>
-      <Label position={[half - 1.5, y, z]} size={0.55} color={PAGE_LOOK.inkDim} anchorX="right">
-        {NAV.join("     ")}
-      </Label>
+      <Slab w={pillW} d={1.3} h={0.06} r={0.4} color={INK.rule} position={[left + pillW / 2, 0, HEADER_Z]} />
+      <Slab
+        w={pillW - 0.06}
+        d={1.24}
+        h={0.07}
+        r={0.38}
+        color={INK.card}
+        position={[left + pillW / 2, 0, HEADER_Z]}
+      />
+      {NAV.map((label, i) => (
+        <Flat
+          key={label}
+          position={[xs[i], 0.07 + LIFT, HEADER_Z]}
+          size={size}
+          color={i === 0 ? INK.text : INK.dim}
+          anchorY="middle"
+        >
+          {label}
+        </Flat>
+      ))}
+      <Flat
+        position={[COLUMN, LIFT, HEADER_Z]}
+        size={size}
+        color={INK.faint}
+        anchorX="right"
+        anchorY="middle"
+      >
+        {NAV_RIGHT.join("      ")}
+      </Flat>
     </>
-  );
-}
-
-function Hairline({ z, inset = 0 }: { z: number; inset?: number }) {
-  return (
-    <Line
-      position={[0, 0.01, z]}
-      size={[width - inset, 0.01, 0.04]}
-      color={PAGE_LOOK.gridMajor}
-      glow={0.8}
-    />
   );
 }
 
 function Footer() {
+  const z = bottom + 7;
   return (
     <>
-      <Hairline z={bottom + FOOTER_DEPTH} />
-      <Label position={[0, 0.02, bottom + FOOTER_DEPTH / 2]} size={0.5} color={PAGE_LOOK.inkDim}>
+      <Rule z={z - 2} x0={-COLUMN} x1={COLUMN} />
+      <Flat position={[0, LIFT, z]} size={0.5} font={FONT.serif} color={INK.faint} anchorX="center">
+        *   *   *
+      </Flat>
+      <Flat position={[0, LIFT, z + 1.1]} size={1.1} font={FONT.serif} color={INK.dim} anchorX="center">
+        finis.
+      </Flat>
+      <Flat position={[0, LIFT, z + 3]} size={0.34} font={FONT.mono} color={INK.faint} anchorX="center">
         cason · 2026 · walk off the edge to start over
-      </Label>
+      </Flat>
     </>
   );
 }
@@ -137,40 +90,22 @@ function Footer() {
 export default function Page() {
   return (
     <>
-      {/* One collider for the slab; the header's rise is small enough to walk up. */}
+      {/* One collider for the slab. */}
       <RigidBody type="fixed" colliders={false}>
-        <CuboidCollider
-          args={[half, thickness / 2, length / 2]}
-          position={[0, -thickness / 2, midZ]}
-        />
+        <CuboidCollider args={[half, thickness / 2, length / 2]} position={[0, -thickness / 2, midZ]} />
       </RigidBody>
 
-      <mesh position={[0, -thickness / 2, midZ]} receiveShadow>
+      {/* The cut edge in a lighter shade, then the page face over it. */}
+      <mesh position={[0, -thickness / 2 - 0.001, midZ]}>
         <boxGeometry args={[width, thickness, length]} />
-        <meshStandardMaterial color={PAGE_LOOK.surface} roughness={0.9} />
+        <meshStandardMaterial color={INK.pageSide} roughness={0.9} />
+      </mesh>
+      <mesh position={[0, -0.0005, midZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[width, length]} />
+        <meshStandardMaterial color={INK.page} roughness={0.95} />
       </mesh>
 
-      <Grid
-        position={[0, 0.004, midZ]}
-        args={[width, length]}
-        cellSize={1}
-        cellThickness={0.6}
-        cellColor={PAGE_LOOK.grid}
-        sectionSize={6}
-        sectionThickness={1}
-        sectionColor={PAGE_LOOK.gridMajor}
-        fadeDistance={60}
-        fadeStrength={1.5}
-        followCamera={false}
-        infiniteGrid={false}
-      />
-
-      <Rim />
       <Header />
-      <Hairline z={top - HEADER.depth} />
-      {DIVIDERS.map((z) => (
-        <Hairline key={z} z={z} inset={4} />
-      ))}
       <Footer />
     </>
   );

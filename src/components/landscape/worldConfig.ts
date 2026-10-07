@@ -9,11 +9,11 @@ import type { Vec3 } from "./types";
 export const WORLD = {
   page: {
     /** Across, x. */
-    width: 36,
+    width: 32,
     /** z of the top edge (behind spawn, under the header) … */
     top: 8,
     /** … and of the bottom edge (past the footer). */
-    bottom: -92,
+    bottom: -84,
     /** Slab thickness under the surface. */
     thickness: 1.5,
   },

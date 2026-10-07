@@ -107,6 +107,13 @@ const STYLE = `
   text-decoration-color: currentColor;
   outline: none;
 }
+.wt-meta, .wt-tags {
+  font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+.wt-tags { color: #ff8a7a; }
+.wt-img { display: block; max-width: 16rem; height: auto; margin: 0.5rem 0; }
 .wt-credits {
   margin-top: 3rem;
   padding-top: 1rem;
@@ -126,6 +133,11 @@ function Entry({ section, depth }: { section: Section; depth: number }) {
   return (
     <section id={section.id} aria-labelledby={headingId}>
       <H id={headingId}>{section.title}</H>
+      {section.meta && <p className="wt-meta">{section.meta}</p>}
+      {section.image && (
+        // eslint-disable-next-line @next/next/no-img-element -- static export, no image optimizer
+        <img className="wt-img" src={section.image} alt={section.title} loading="lazy" />
+      )}
       {section.lines.map((line, i) => (
         <p key={i}>{line}</p>
       ))}
@@ -147,6 +159,9 @@ function Entry({ section, depth }: { section: Section; depth: number }) {
             );
           })}
         </ul>
+      )}
+      {section.tags && section.tags.length > 0 && (
+        <p className="wt-tags">{section.tags.join("  ")}</p>
       )}
       {section.children?.map((c) => (
         <Entry key={c.id} section={c} depth={depth + 1} />
@@ -190,7 +205,7 @@ export default function WorldText() {
             are fan-made models of Pokémon designs © Nintendo / Creatures / GAME
             FREAK, used non-commercially.
           </p>
-          <p>Title font: Helvetiker Bold, MgOpen licence. Label font: Geist, SIL Open Font License.</p>
+          <p>Fonts: Instrument Serif, Geist and Geist Mono, all under the SIL Open Font License.</p>
         </footer>
       </main>
     </div>
