@@ -418,6 +418,7 @@ export const ROOM = {
       // With an `href`, the item stops being a panel and becomes a link to
       // a page of its own.
       { label: "art", href: "/art/" },
+      { label: "world", href: "/3d/" },
     ] as readonly { label: string; href?: string }[],
     /** Delay before typing starts, ms. [0 … 3000] */
     startDelayMs: 900,
