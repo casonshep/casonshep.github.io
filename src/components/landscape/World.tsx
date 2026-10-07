@@ -3,7 +3,6 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { Stars } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
 import Page from "./Page";
 import Player from "./Player";
@@ -12,11 +11,11 @@ import { playerState } from "./playerState";
 import { INK } from "./theme";
 import { useIsTouch } from "./useIsTouch";
 
-// A dark page lit like a screen: an even, soft fill so the type reads
-// everywhere, a gentle key light that follows the player (its shadow box
-// only has to cover the area in view) to give the raised cards and letters
-// some depth, faint stars in the void, and fog in the void's colour so the
-// far end of the page fades in as you walk down it.
+// Paper in daylight: an even fill so the page reads white everywhere, a
+// soft key light that follows the player (its shadow box only has to cover
+// the area in view) so the raised letters and cards cast short shadows, and
+// fog in the floor's colour so the far end of the page fades in as you walk
+// down it. The canvas renders `flat` (no tone mapping), so white is white.
 
 /** Void and fog colour; Landscape paints the page behind the canvas with it too. */
 export const SKY = INK.void;
@@ -26,10 +25,12 @@ const LOOK = {
   fogNear: 34,
   fogFar: 90,
   hemiSky: "#ffffff",
-  hemiGround: "#1a1a20",
-  hemiIntensity: 1.5,
-  sunColor: "#fff6ec",
-  sunIntensity: 1.1,
+  hemiGround: "#d8d3c8",
+  // three's Lambert divides by π, so a white page needs light ≈ π to read
+  // as white: fill alone gives ~0.75 (the shadow tone), fill + sun clips to white.
+  hemiIntensity: 2.4,
+  sunColor: "#ffffff",
+  sunIntensity: 1.7,
   /** Key light direction from the player: high, from the front-right. */
   sunOffset: [14, 26, 10] as const,
   /** Half-width of the square the shadow camera covers around the player. */
@@ -100,7 +101,6 @@ export default function World() {
       <fog attach="fog" args={[LOOK.sky, LOOK.fogNear, LOOK.fogFar]} />
       <hemisphereLight args={[LOOK.hemiSky, LOOK.hemiGround, LOOK.hemiIntensity]} />
       <Sun />
-      <Stars radius={140} depth={60} count={1500} factor={2.5} saturation={0} fade speed={0.3} />
       <Physics>
         <Page />
         <Player />

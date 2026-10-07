@@ -1,20 +1,19 @@
 "use client";
 
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
-import { Flat, LIFT, Rule, Slab, rowOffsets } from "./Flat";
+import { Flat, LIFT, Rule } from "./Flat";
 import { COLUMN, FONT, INK } from "./theme";
 import { WORLD } from "./worldConfig";
 
-// The page itself: a dark slab floating in the void, with the site's chrome
-// printed on it — a pill nav at the top left and a couple of links at the
-// right, and an ornamented footer at the bottom. Nothing fences it in; walk
+// The page itself: a sheet of paper floating over the floor, with the
+// site's chrome printed on it — the name at the top left, a plain slash-
+// separated nav at the right, a rule under them, and an ornamented footer. Nothing fences it in; walk
 // off a side and you fall, and Player puts you back at spawn.
 //
 // What the page *says* lives in sections.ts and Layout.tsx; this file only
 // draws the frame around it. The nav and footer are print, not links.
 
-const NAV = ["cason", "writing", "projects", "art", "say hi"];
-const NAV_RIGHT = ["github", "email", "text version"];
+const NAV = ["writing", "projects", "art", "say hi", "github"];
 
 const { width, top, bottom, thickness } = WORLD.page;
 const length = top - bottom;
@@ -25,46 +24,29 @@ const half = width / 2;
 const HEADER_Z = top - 2.4;
 
 function Header() {
-  const size = 0.42;
-  // Mono-ish spacing estimate for the pill's width; the nav is in sans.
-  const advance = size * 0.56;
-  const gap = 1.1;
-  const words = NAV.map((w) => w.length * advance);
-  const pad = 0.8;
-  const pillW = words.reduce((a, b) => a + b, 0) + gap * (NAV.length - 1) + pad * 2;
-  const left = -COLUMN;
-  const xs = rowOffsets(words, left + pad, gap);
+  const size = 0.4;
   return (
     <>
-      <Slab w={pillW} d={1.3} h={0.06} r={0.4} color={INK.rule} position={[left + pillW / 2, 0, HEADER_Z]} />
-      <Slab
-        w={pillW - 0.06}
-        d={1.24}
-        h={0.07}
-        r={0.38}
-        color={INK.card}
-        position={[left + pillW / 2, 0, HEADER_Z]}
-      />
-      {NAV.map((label, i) => (
-        <Flat
-          key={label}
-          position={[xs[i], 0.07 + LIFT, HEADER_Z]}
-          size={size}
-          color={i === 0 ? INK.text : INK.dim}
-          anchorY="middle"
-        >
-          {label}
-        </Flat>
-      ))}
+      <Flat
+        position={[-COLUMN, LIFT, HEADER_Z]}
+        size={1}
+        font={FONT.serif}
+        color={INK.text}
+        anchorY="middle"
+      >
+        cason
+      </Flat>
       <Flat
         position={[COLUMN, LIFT, HEADER_Z]}
         size={size}
-        color={INK.faint}
+        font={FONT.mono}
+        color={INK.dim}
         anchorX="right"
         anchorY="middle"
       >
-        {NAV_RIGHT.join("      ")}
+        {NAV.join("  /  ")}
       </Flat>
+      <Rule z={HEADER_Z + 1.2} x0={-COLUMN} x1={COLUMN} />
     </>
   );
 }

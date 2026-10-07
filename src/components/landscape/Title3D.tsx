@@ -36,7 +36,7 @@ export default function Title3D({
   align = "left",
   height = WORLD.letterHeight,
   color = INK.text,
-  glow = 0.08,
+  glow = 0,
 }: {
   text: string;
   /** Left edge (align "left") or centre (align "center") of the text, on the ground. */

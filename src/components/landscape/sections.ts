@@ -35,7 +35,7 @@ export const SECTIONS: Section[] = [
         id: "me-now",
         title: "Building a site you can walk on",
         meta: "now · october 2026",
-        lines: ["Placeholder. This page, as it happens — a dark personal site laid flat and given a floor."],
+        lines: ["Placeholder. This page, as it happens — a personal site laid flat and given a floor."],
         tags: ["three.js", "r3f", "rapier"],
       },
     ],

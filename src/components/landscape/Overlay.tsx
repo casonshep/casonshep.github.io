@@ -11,8 +11,8 @@ import { useStandingSection } from "./useStandingSection";
 // and it never takes focus: nothing here autofocuses or listens for keys,
 // so WASD always reaches the player.
 //
-// The panel is the RoomPanel idiom (mono, dark glass, thin rules), which
-// reads just as well over a bright sky as over the dark room.
+// Styled as paper to match the page: off-white, ink borders, a hard offset
+// shadow, square corners, underlined links.
 
 const STYLE = `
 .land-overlay {
@@ -21,13 +21,15 @@ const STYLE = `
   z-index: 10;
   pointer-events: none;
   font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  color: #151515;
 }
+/* Paper, not glass: an off-white box with a 1px ink border and a hard
+   offset shadow, square-cornered, like the cards printed on the page. */
 .land-glass {
   pointer-events: auto;
-  border-radius: 10px;
-  background: rgba(14, 14, 18, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  background: #fbfaf7;
+  border: 1px solid #151515;
+  box-shadow: 3px 3px 0 #151515;
 }
 
 .land-head {
@@ -36,17 +38,16 @@ const STYLE = `
   left: clamp(0.75rem, 2vw, 1.5rem);
   display: flex;
   gap: 1rem;
-  padding: 0.45rem 0.8rem;
+  padding: 0.4rem 0.7rem;
   font-size: 0.75rem;
-  letter-spacing: 0.02em;
 }
 .land-head a {
-  color: rgba(255, 255, 255, 0.7);
-  text-decoration: none;
-  transition: color 140ms ease-out;
+  color: #151515;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .land-head a:hover, .land-head a:focus-visible {
-  color: rgba(255, 255, 255, 0.98);
+  color: #a3231c;
   outline: none;
 }
 
@@ -55,11 +56,10 @@ const STYLE = `
   bottom: clamp(0.75rem, 2vh, 1.25rem);
   left: 50%;
   transform: translateX(-50%);
-  padding: 0.4rem 0.8rem;
+  padding: 0.35rem 0.7rem;
   font-size: 0.68rem;
-  letter-spacing: 0.06em;
   white-space: nowrap;
-  color: rgba(255, 255, 255, 0.7);
+  color: #444;
   pointer-events: none;
 }
 .land-hint-touch { display: none; }
@@ -77,16 +77,13 @@ const STYLE = `
   width: min(24rem, 40vw);
   max-height: min(60vh, 30rem);
   overflow-y: auto;
-  padding: 1.1rem 1.25rem 1.25rem;
-  border-radius: 14px;
-  background: rgba(14, 14, 18, 0.86);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  padding: 1rem 1.15rem 1.1rem;
   opacity: 0;
-  transform: translateY(-0.6rem);
+  transform: translateY(-0.4rem);
   visibility: hidden;
   /* Hidden only once faded, so a closed panel's links can't be tabbed to. */
-  transition: opacity 200ms ease-out, transform 200ms ease-out,
-              visibility 0s linear 200ms;
+  transition: opacity 160ms ease-out, transform 160ms ease-out,
+              visibility 0s linear 160ms;
 }
 .land-panel.open {
   opacity: 1;
@@ -101,7 +98,7 @@ const STYLE = `
     right: auto;
     width: min(34rem, 92vw);
     max-height: 40vh;
-    transform: translate(-50%, -0.6rem);
+    transform: translate(-50%, -0.4rem);
   }
   .land-panel.open { transform: translate(-50%, 0); }
 }
@@ -112,38 +109,43 @@ const STYLE = `
   .land-panel, .land-panel.open { transition: none; }
 }
 .land-panel h2 {
-  margin: 0 0 0.7rem;
-  padding-bottom: 0.55rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.78rem;
+  margin: 0 0 0.6rem;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-size: 1.6rem;
   font-weight: 400;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.1;
+  color: #151515;
 }
 .land-panel p {
   margin: 0 0 0.55rem;
-  font-size: 0.8rem;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 0.85rem;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.86);
+  color: #333;
   overflow-wrap: anywhere;
 }
 .land-panel-links {
   display: flex;
   flex-wrap: wrap;
   gap: 0.9rem;
-  margin-top: 0.9rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #151515;
 }
 .land-panel-links a {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.65);
-  text-decoration: none;
-  transition: color 140ms ease-out;
+  color: #a3231c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .land-panel-links a:hover, .land-panel-links a:focus-visible {
-  color: rgba(255, 255, 255, 0.98);
+  color: #151515;
   outline: none;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/InstrumentSerif-Regular.ttf") format("truetype");
+  font-display: swap;
 }
 `;
 

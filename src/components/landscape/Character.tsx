@@ -67,8 +67,20 @@ export const MINIQ: CharacterModel = {
   clips: null,
 };
 
+/**
+ * "Umbreon" by drewsdigitaldesigns, CC BY 4.0 —
+ * https://sketchfab.com/3d-models/umbreon-edd472b08b254e09b57ab46a7a06334b
+ * Fan-made and static (no rig), so it walks by the procedural waddle below.
+ */
+export const UMBREON: CharacterModel = {
+  url: "/models/umbreon.glb",
+  height: 1.25,
+  yaw: 0,
+  clips: null,
+};
+
 /** Who you play as — the one-line swap. */
-export const CHARACTER_MODEL: CharacterModel | null = MINIQ;
+export const CHARACTER_MODEL: CharacterModel | null = UMBREON;
 
 /** The procedural walk for static models. */
 const WADDLE = {

@@ -20,6 +20,7 @@ export default function Landscape() {
       <div className="fixed inset-0" style={{ background: SKY }}>
         <Canvas
           shadows="percentage"
+          flat
           dpr={WORLD.dpr}
           camera={{ fov: 50, near: 0.1, far: 300, position: [0, 6, 12] }}
           gl={{ antialias: true, powerPreference: "high-performance" }}

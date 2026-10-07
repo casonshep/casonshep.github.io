@@ -1,0 +1,11 @@
+umbreon.glb
+
+"Umbreon" by drewsdigitaldesigns
+https://sketchfab.com/3d-models/umbreon-edd472b08b254e09b57ab46a7a06334b
+Author: https://sketchfab.com/drewsdigitaldesigns
+Licensed under CC BY 4.0: http://creativecommons.org/licenses/by/4.0/
+
+Changes: none to the file. Static model; the walk is procedural (code).
+
+Umbreon is a Pokémon design (c) Nintendo / Creatures / GAME FREAK.
+This is a fan-made model, used non-commercially.

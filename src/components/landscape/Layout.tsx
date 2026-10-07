@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo } from "react";
 import { Box3, Vector3 } from "three";
 import Card from "./Card";
-import { Flat, LIFT, Pill, Rule, Slab, pillWidth, rowOffsets } from "./Flat";
+import { Flat, LIFT, Pill, Rule, pillWidth, rowOffsets } from "./Flat";
 import { sectionBounds } from "./playerState";
 import { SECTIONS } from "./sections";
 import { COLUMN, FONT, INK } from "./theme";
@@ -60,11 +60,12 @@ function Heading({ section, button }: { section: Section; button?: boolean }) {
           label={link.label}
           size={0.3}
           color={INK.text}
+          boxed
           position={[COLUMN - pillWidth(link.label, 0.3), y, z]}
         />
       )}
       {section.lines[0] && (
-        <Flat position={[x, y + LIFT, z + UNDER]} size={0.42} maxWidth={COLUMN * 2}>
+        <Flat position={[x, y + LIFT, z + UNDER]} size={0.42} color={INK.dim} maxWidth={COLUMN * 2}>
           {section.lines[0]}
         </Flat>
       )}
@@ -103,7 +104,6 @@ const ROW = { depth: 1.8, pitch: 2 };
 
 function List({ section }: { section: Section }) {
   const [, y, z] = section.position ?? [-COLUMN, 0, 0];
-  const width = COLUMN * 2;
   return (
     <>
       <Heading section={section} button />
@@ -122,7 +122,7 @@ function List({ section }: { section: Section }) {
         return (
           <group key={post.id}>
             <Zone id={post.id} min={[-COLUMN, y, cz - ROW.depth / 2]} max={[COLUMN, y + 0.02, cz + ROW.depth / 2]} />
-            <Slab w={width} d={ROW.depth} h={0.02} r={0.35} color={INK.cardTop} position={[0, y, cz]} />
+            <Rule z={cz + ROW.depth / 2 + (ROW.pitch - ROW.depth) / 2} x0={-COLUMN} x1={COLUMN} y={y} />
             <Flat
               position={[-COLUMN + 0.6, y + 0.03, cz]}
               size={0.32}
@@ -175,7 +175,7 @@ function Text({ section }: { section: Section }) {
     <>
       <Rule z={z - RULE_GAP} x0={-COLUMN} x1={COLUMN} y={y} />
       <Title3D id={section.id} text={section.title} origin={[x, y, z]} size={HEADING} />
-      <Flat position={[x, y + LIFT, z + UNDER + 0.2]} size={0.5} maxWidth={COLUMN * 1.5}>
+      <Flat position={[x, y + LIFT, z + UNDER + 0.2]} size={0.5} color={INK.dim} maxWidth={COLUMN * 1.5}>
         {section.lines.join("\n\n")}
       </Flat>
       <Links section={section} position={[x, y + LIFT, z + UNDER + 2.4]} />

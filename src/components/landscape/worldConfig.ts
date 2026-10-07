@@ -20,8 +20,8 @@ export const WORLD = {
   spawn: [0, 2, 1] as Vec3,
   /** Peak jump height; the controller's jump velocity is tuned to reach it. */
   jumpHeight: 1.0,
-  /** Title letter height — ≈ 0.6 × jumpHeight: climbable, not trivial. */
-  letterHeight: 0.6,
+  /** Heading letter height — under half a jump, so hopping on is easy. */
+  letterHeight: 0.45,
   /** The player counts as standing on a block up to this far above its top. */
   standHeadroom: 1.5,
   dpr: [1, 1.5] as [number, number],

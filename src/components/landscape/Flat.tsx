@@ -2,7 +2,7 @@
 
 import { Text } from "@react-three/drei";
 import { useEffect, useMemo, type ComponentProps } from "react";
-import { ExtrudeGeometry, Shape } from "three";
+import { BoxGeometry, ExtrudeGeometry, Shape } from "three";
 import { FONT, INK } from "./theme";
 import type { Vec3 } from "./types";
 
@@ -78,6 +78,12 @@ export function Slab({
   position?: Vec3;
 }) {
   const geometry = useMemo(() => {
+    if (r <= 0) {
+      // Square-cornered: a plain box, base on y = 0.
+      const box = new BoxGeometry(w, h, d);
+      box.translate(0, h / 2, 0);
+      return box;
+    }
     const rr = Math.min(r, w / 2, d / 2);
     const x = -w / 2;
     const y = -d / 2;
@@ -118,27 +124,35 @@ export function rowOffsets(widths: readonly number[], start: number, gap: number
   return widths.map((_, i) => start + widths.slice(0, i).reduce((a, b) => a + b + gap, 0));
 }
 
-/** A rounded tag (`#react`) or button (`all posts`), its left edge at `position`. */
+/** A tag (`#react`, plain red mono) or, `boxed`, a button (`all posts`, in
+ *  a square ink outline), its left edge at `position`. */
 export function Pill({
   label,
   position,
   size = 0.32,
   color = INK.accent,
+  boxed = false,
 }: {
   label: string;
   position: Vec3;
   size?: number;
   color?: string;
+  boxed?: boolean;
 }) {
   const w = pillWidth(label, size);
   const d = size * 2;
-  const h = 0.05;
+  const h = boxed ? 0.05 : 0;
   const [x, y, z] = position;
   return (
     <group position={[x + w / 2, y, z]}>
-      <Slab w={w} d={d} h={h} r={d / 2} color={INK.card} />
+      {boxed && (
+        <>
+          <Slab w={w} d={d} h={h} r={0} color={INK.line} />
+          <Slab w={w - 0.06} d={d - 0.06} h={h + 0.004} r={0} color={INK.card} />
+        </>
+      )}
       <Flat
-        position={[0, h + LIFT, 0]}
+        position={[0, h + 0.004 + LIFT, 0]}
         size={size}
         font={FONT.mono}
         color={color}

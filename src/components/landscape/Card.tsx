@@ -9,16 +9,18 @@ import { sectionBounds } from "./playerState";
 import { FONT, INK } from "./theme";
 import type { Section, Vec3 } from "./types";
 
-// A card from the page's grid, raised off the page so you can hop onto it:
-// a rounded tile with a mono label at the top ("projects · 2026"), a serif
+// A card from the page's grid, raised a step off the page so you walk onto
+// it: a square white box with a 1px-style ink border and a hard offset
+// shadow (the box-shadow: 4px 4px 0 #000 look), with a mono label at the top ("projects · 2026"), a serif
 // title, a line of body copy, and either tags or a picture. Standing on it
 // raises its panel, the way hovering a card would on a flat site.
 
 export const CARD = {
-  /** How far a card stands proud of the page — a small hop. */
-  rise: 0.35,
-  radius: 0.45,
+  /** How far a card stands proud of the page — low enough to walk onto. */
+  rise: 0.12,
   pad: 0.7,
+  /** The hard shadow's offset, toward +x/+z (down-right on screen). */
+  shadow: 0.28,
 };
 
 /** A picture inset in the card, covering its lower part. */
@@ -88,9 +90,10 @@ export default function Card({
       <RigidBody type="fixed" colliders={false}>
         <CuboidCollider args={[w / 2, top / 2, d / 2]} position={[0, top / 2, 0]} />
       </RigidBody>
-      {/* An outline a shade lighter than the face, the card's border. */}
-      <Slab w={w} d={d} h={top - 0.02} r={CARD.radius} color={INK.rule} />
-      <Slab w={w - 0.08} d={d - 0.08} h={top} r={CARD.radius - 0.04} color={INK.card} />
+      {/* Hard shadow, ink border, white face. */}
+      <Slab w={w} d={d} h={0.02} r={0} color={INK.line} position={[CARD.shadow, 0, CARD.shadow]} />
+      <Slab w={w} d={d} h={top - 0.004} r={0} color={INK.line} />
+      <Slab w={w - 0.07} d={d - 0.07} h={top} r={0} color={INK.card} />
 
       <group position={[0, top + LIFT, 0]}>
         {item.meta && (
@@ -98,14 +101,14 @@ export default function Card({
             {item.meta}
           </Flat>
         )}
-        <Flat position={[w / 2 - pad, 0, z0]} size={0.36} color={INK.faint} anchorX="right">
+        <Flat position={[w / 2 - pad, 0, z0]} size={0.36} color={INK.accent} anchorX="right">
           ↗
         </Flat>
         <Flat position={[x0, 0, z0 + 0.8]} size={0.95} font={FONT.serif} color={INK.text} maxWidth={w - 2 * pad}>
           {item.title}
         </Flat>
         {item.lines[0] && !item.image && (
-          <Flat position={[x0, 0, z0 + 2.3]} size={0.36} maxWidth={w - 2 * pad}>
+          <Flat position={[x0, 0, z0 + 2.3]} size={0.36} color={INK.dim} maxWidth={w - 2 * pad}>
             {item.lines[0]}
           </Flat>
         )}

@@ -33,6 +33,8 @@ const STYLE = `
   overflow-y: auto;
   overscroll-behavior: contain;
   font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+  background: #fbfaf7;
+  color: #151515;
 }
 .wt-head {
   display: flex;
@@ -42,7 +44,7 @@ const STYLE = `
   padding: clamp(1rem, 2.5vh, 1.75rem) clamp(1rem, 3vw, 2.5rem);
   font-size: clamp(0.8rem, 1.1vw, 0.95rem);
   letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.7);
+  color: #4a4a4a;
 }
 .wt-head nav { display: flex; gap: 1.25rem; }
 .wt-head a {
@@ -51,7 +53,7 @@ const STYLE = `
   transition: color 140ms ease-out;
 }
 .wt-head a:hover, .wt-head a:focus-visible {
-  color: rgba(255, 255, 255, 0.98);
+  color: #a3231c;
   text-decoration: underline;
   text-underline-offset: 0.25em;
   outline: none;
@@ -66,25 +68,25 @@ const STYLE = `
   font-size: 1rem;
   font-weight: 400;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.92);
+  color: #151515;
 }
 .wt section { margin: 0 0 2.25rem; }
 .wt section section { margin: 1.25rem 0 0 1rem; }
 .wt h2, .wt h3, .wt h4, .wt h5, .wt h6 {
   margin: 0 0 0.7rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid #151515;
   font-size: 0.85rem;
   font-weight: 400;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.75);
+  color: #151515;
 }
 .wt h3, .wt h4, .wt h5, .wt h6 { font-size: 0.8rem; border-bottom: 0; }
 .wt p {
   margin: 0 0 0.55rem;
   font-size: 0.85rem;
   line-height: 1.65;
-  color: rgba(255, 255, 255, 0.86);
+  color: #333;
   overflow-wrap: anywhere;
 }
 .wt ul {
@@ -97,31 +99,31 @@ const STYLE = `
   font-size: 0.8rem;
 }
 .wt ul a {
-  color: rgba(255, 255, 255, 0.8);
+  color: #a3231c;
   text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-decoration-color: currentColor;
   text-underline-offset: 0.25em;
 }
 .wt ul a:hover, .wt ul a:focus-visible {
-  color: #fff;
+  color: #151515;
   text-decoration-color: currentColor;
   outline: none;
 }
 .wt-meta, .wt-tags {
   font-family: var(--font-geist-mono), ui-monospace, Menlo, monospace;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #6b675f;
 }
-.wt-tags { color: #ff8a7a; }
+.wt-tags { color: #a3231c; }
 .wt-img { display: block; max-width: 16rem; height: auto; margin: 0.5rem 0; }
 .wt-credits {
   margin-top: 3rem;
   padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid #151515;
 }
 .wt-credits p { font-size: 0.75rem; }
-.wt-credits a { color: rgba(255, 255, 255, 0.85); }
-.wt-empty { color: rgba(255, 255, 255, 0.7); font-size: 0.85rem; }
+.wt-credits a { color: #a3231c; }
+.wt-empty { color: #6b675f; font-size: 0.85rem; }
 `;
 
 const HEADINGS = ["h2", "h3", "h4", "h5", "h6"] as const;
@@ -197,7 +199,11 @@ export default function WorldText() {
             </a>
             ” by pokedigilucas, licensed{" "}
             <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
-            ; animated in code. Also included: “
+            ; and “
+            <a href="https://sketchfab.com/3d-models/umbreon-edd472b08b254e09b57ab46a7a06334b">
+              Umbreon
+            </a>
+            ” by drewsdigitaldesigns, CC BY 4.0 — both static, animated in code. Also included: “
             <a href="https://sketchfab.com/3d-models/luxray-7c6a2c3957d7437691a3f8125f362756">
               Luxray
             </a>

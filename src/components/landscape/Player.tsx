@@ -45,8 +45,8 @@ const BODY = {
   rayRadius: 0.175,
   /** Gap the spring holds between the probe and the ground. */
   floatHeight: 0.15,
-  maxWalkVel: 3,
-  maxRunVel: 6,
+  maxWalkVel: 5,
+  maxRunVel: 9,
   /** Launch speed for a peak of WORLD.jumpHeight under 1 g (ecctrl only adds
    *  its extra gravity on the way down); +10% because the float spring
    *  drags on the first few centimetres of the rise. */
