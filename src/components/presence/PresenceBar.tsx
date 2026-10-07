@@ -1,10 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  isKeySoundMuted,
-  setKeySoundMuted,
-} from "../keyboard/Keyboard";
 import AsciiFloor from "./AsciiFloor";
 import ChatConsole from "./ChatConsole";
 import { useChatLog } from "./chatLog";
@@ -439,8 +435,6 @@ export default function PresenceBar({ presence }: { presence: Presence }) {
         setAvatarId,
         say,
         print,
-        muted: isKeySoundMuted(),
-        setMuted: setKeySoundMuted,
       });
       if (result.hint) print(result.hint);
       // A typo keeps the composer open with the text still in it — closing

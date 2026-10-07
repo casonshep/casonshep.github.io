@@ -2,7 +2,7 @@
 
 A single-page site: a glass keyboard on a podium in a dark 3D room, slowly
 turning, lit by the spectral glow under its own plate. Click the keys or type
-on your real keyboard to press them (with sound).
+on your real keyboard to press them.
 
 Built with Next.js (static export), React Three Fiber, drei and three.js.
 
@@ -30,7 +30,7 @@ camera, podium, glass materials, keycap shape, the glow pattern, and the
 - `src/components/room/HoloPanel.tsx` — the animated glow under the plate.
 - `src/components/room/holoEnv.ts` — procedural reflection map (glass only).
 - `src/components/room/keyLayout.ts` — key geometry and legend textures.
-- `src/components/keyboard/Keyboard.ts` — key layout data, sound engine,
+- `src/components/keyboard/Keyboard.ts` — key layout data and
   physical-keyboard input.
 
 ## Deploy

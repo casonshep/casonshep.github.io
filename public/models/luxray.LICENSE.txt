@@ -1,0 +1,11 @@
+luxray.glb
+
+"Luxray" by Gianmarco (GianmArt)
+https://sketchfab.com/3d-models/luxray-7c6a2c3957d7437691a3f8125f362756
+Licensed under CC BY 4.0: http://creativecommons.org/licenses/by/4.0/
+
+Changes: repacked as a single GLB and compressed with meshopt
+(gltf-transform optimize). Geometry, rig and animations otherwise unchanged.
+
+Luxray is a Pokémon character design (c) Nintendo / Creatures / GAME FREAK.
+This is a fan-made model, used non-commercially.
