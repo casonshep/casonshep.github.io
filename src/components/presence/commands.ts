@@ -37,9 +37,6 @@ export type CommandContext = {
   /** Write lines into the chat log, seen only by whoever ran the command.
    *  Nothing printed here is broadcast. */
   print: (...lines: string[]) => void;
-  /** Global key-sound mute, for `/mute`. */
-  muted: boolean;
-  setMuted: (muted: boolean) => void;
 };
 
 export type Command = {
@@ -106,14 +103,6 @@ export const COMMANDS: readonly Command[] = [
     name: "/dance",
     help: "everyone watches you dance",
     run: (ctx) => ctx.say("/dance"),
-  },
-  {
-    name: "/mute",
-    help: "mute (or unmute) the keyboard",
-    run: (ctx) => {
-      ctx.setMuted(!ctx.muted);
-      return ctx.muted ? "keyboard unmuted" : "keyboard muted";
-    },
   },
 ];
 

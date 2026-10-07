@@ -14,11 +14,7 @@ import { useFrame } from "@react-three/fiber";
 import { MeshTransmissionMaterial } from "@react-three/drei";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import {
-  KEY_PAN,
-  getSoundCategory,
-  getThockEngine,
   makeKeyboardController,
-  playKeySound,
   useGlobalKeyInput,
   type KeyboardController,
 } from "../keyboard/Keyboard";
@@ -159,7 +155,6 @@ function GlassKey({
           onPointerDown={(e) => {
             e.stopPropagation();
             pressed.current = true;
-            playKeySound(getSoundCategory(cfg.id), !!cfg.muted, KEY_PAN[cfg.id] ?? 0);
           }}
           onPointerUp={() => {
             pressed.current = false;
@@ -299,23 +294,6 @@ const SpotlightKeyboard = forwardRef<
     useEffect(() => {
       onController?.(makeKeyboardController(pressKey, releaseKey));
     }, [onController, pressKey, releaseKey]);
-
-    // Warm the sound engine, and resume its context on the first gesture
-    // (browsers refuse audio before one).
-    useEffect(() => {
-      void getThockEngine();
-      const unlock = () => {
-        void getThockEngine().then((engine) => {
-          if (engine && engine.ctx.state === "suspended") void engine.ctx.resume();
-        });
-      };
-      window.addEventListener("pointerdown", unlock, { once: true });
-      window.addEventListener("keydown", unlock, { once: true });
-      return () => {
-        window.removeEventListener("pointerdown", unlock);
-        window.removeEventListener("keydown", unlock);
-      };
-    }, []);
 
     // Keys sit on top of the plate.
     const plateD = board.depth * ROOM.board.plateDepthScale;
